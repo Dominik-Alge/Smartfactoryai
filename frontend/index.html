@@ -4,11 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FactoryAI - Shopfloor Panel</title>
-    <!-- Tailwind CSS direkt laden für schnelles Prototyping -->
+    <!-- Modernes Tailwind-Framework laden -->
     <script src="https://tailwindcss.com"></script>
+    <style>
+      /* Zusätzliche optische Aufwertungen, die reines CSS benötigt */
+      @import url('https://googleapis.com');
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8fafc;
+      }
+      /* Echter 3D-Glaseffekt für die Ampeln */
+      .led-green {
+        background: radial-gradient(circle at 35% 35%, #34d399 0%, #059669 70%, #047857 100%);
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      }
+      .led-red {
+        background: radial-gradient(circle at 35% 35%, #f87171 0%, #dc2626 70%, #b91c1c 100%);
+        box-shadow: 0 0 16px rgba(239, 68, 68, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+      }
+    </style>
   </head>
-  <body class="bg-gray-100 text-gray-900 min-h-screen">
+  <body class="antialiased select-none">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+
