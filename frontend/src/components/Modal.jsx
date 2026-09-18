@@ -16,32 +16,37 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
 
   const isCurrentRed = currentData?.status === 'red';
 
-  // Handler für das normale Speichern / Aktualisieren
-  const handleSubmit = (e, targetStatus) => {
+  // Zentraler Submit-Handler, der flexibel mit Events oder direkten Klicks umgeht
+  const handleProcessSubmit = (e, targetStatus) => {
     if (e) e.preventDefault();
     if (!note.trim()) return;
 
-    // Nutzt den übergebenen Zielstatus (entweder 'red' oder 'green')
-    onSave(machineId, criterion, targetStatus, note.trim(), author.trim() || 'Mitarbeiter');
+    onSave(
+      machineId, 
+      criterion, 
+      targetStatus, 
+      note.trim(), 
+      author.trim() || 'Mitarbeiter'
+    );
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100 overflow-hidden">
         
-        {/* Dynamischer Header: Rot bei Alarm-Meldung, Blau/Grau bei Bearbeitung eines bestehenden Alarms */}
+        {/* Dynamischer Header: Rot bei Alarm-Meldung, Schiefergrau bei bestehendem Alarm */}
         <div className={`p-4 text-white flex justify-between items-center transition-colors ${
           isCurrentRed ? 'bg-gradient-to-r from-slate-700 to-slate-600' : 'bg-gradient-to-r from-red-600 to-red-500'
         }`}>
           <div>
             <h3 className="font-bold text-lg">
-              {isCurrentRed ? 'Problem bearbeiten / lösen' : 'Problem melden'}
+              {isCurrentRed ? '⚠️ Problem bearbeiten / lösen' : '🚨 Neue Störung melden'}
             </h3>
-            <p className={`text-xs ${isCurrentRed ? 'text-slate-200' : 'text-red-100'}`}>
-              Spalte: {machineId} • Kriterium: {criterion}
+            <p className={`text-xs mt-0.5 ${isCurrentRed ? 'text-slate-200' : 'text-red-100'}`}>
+              Auftrag/ID: <span className="font-bold">{machineId}</span> • Kriterium: <span className="font-bold">{criterion}</span>
             </p>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white text-2xl font-semibold transition">&times;</button>
+          <button onClick={onClose} className="text-white/80 hover:text-white text-2xl font-semibold transition focus:outline-none">&times;</button>
         </div>
 
         {/* Inhalt & Verlaufshistorie */}
@@ -49,14 +54,14 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
           {currentData?.notes && currentData.notes.length > 0 && (
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Bisheriger Verlauf:</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1 border-b border-gray-100 pb-2">
                 {[...currentData.notes].reverse().map((n, idx) => (
                   <div key={idx} className="bg-gray-50 border-l-4 border-amber-500 p-2.5 rounded-r-lg text-sm shadow-sm">
                     <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
                       <span className="font-semibold text-gray-700">{n.author}</span>
                       <span>{n.timestamp}</span>
                     </div>
-                    <p className="text-gray-800 leading-relaxed">{n.text}</p>
+                    <p className="text-gray-800 leading-relaxed text-xs">{n.text}</p>
                   </div>
                 ))}
               </div>
@@ -64,7 +69,7 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
           )}
 
           {/* Formular */}
-          <form onSubmit={(e) => handleSubmit(e, isCurrentRed ? 'red' : 'red')} className="space-y-3 pt-2">
+          <form onSubmit={(e) => handleProcessSubmit(e, isCurrentRed ? 'red' : 'red')} className="space-y-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Dein Name / Kürzel</label>
               <input
@@ -91,7 +96,7 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
             </div>
 
             {/* Dynamische Button-Leiste je nach Ampel-Zustand */}
-            <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-gray-100 mt-4">
               <button
                 type="button"
                 onClick={onClose}
@@ -105,24 +110,24 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
                   {/* Option A: Nur eine neue Notiz hinzufügen, Status bleibt ROT */}
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-slate-600 text-white font-medium rounded-lg text-sm hover:bg-slate-700 active:scale-95 transition shadow-md"
+                    className="px-4 py-2 bg-slate-600 text-white font-medium rounded-lg text-sm hover:bg-slate-700 active:scale-95 transition shadow-sm"
                   >
                     Notiz hinzufügen
                   </button>
                   {/* Option B: Problem gelöst, Ampel geht zurück auf GRÜN */}
                   <button
                     type="button"
-                    onClick={() => handleSubmit(null, 'green')}
-                    className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg text-sm hover:bg-emerald-700 active:scale-95 transition shadow-md shadow-emerald-200"
+                    onClick={(e) => handleProcessSubmit(e, 'green')}
+                    className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg text-sm hover:bg-emerald-700 active:scale-95 transition shadow-sm"
                   >
-                    Problem gelöst (-> GRÜN)
+                    Problem gelöst (➔ GRÜN)
                   </button>
                 </>
               ) : (
                 /* Wenn Ampel grün war: Klassischer "Als ROT speichern"-Button */
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg text-sm hover:bg-red-700 active:scale-95 transition shadow-md shadow-red-200"
+                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg text-sm hover:bg-red-700 active:scale-95 transition shadow-sm"
                 >
                   Als ROT speichern
                 </button>
