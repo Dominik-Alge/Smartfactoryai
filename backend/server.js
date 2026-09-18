@@ -1,16 +1,20 @@
 // backend/server.js
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const nodemailer = require('nodemailer');
-const fs = require('fs'); // <-- NEU: Für dauerhafte Speicherung als Datei
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import nodemailer from 'nodemailer';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// __dirname-Ersatz für ES-Module konfigurieren
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Speicher-Datei Pfad definieren
 const STORAGE_FILE = path.join(__dirname, 'shopfloor_storage.json');
@@ -21,7 +25,7 @@ const defaultData = {
     name: "Gruppe Drehen",
     machines: ["12771", "12772", "12773", "12774", "12766"],
     criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
-    cells: {} // Hier landen die Stati: "12771-AVOR": { status: "green", notes: [] }
+    cells: {}
   },
   "fraesen": {
     name: "Gruppe Fräsen",
@@ -46,14 +50,6 @@ function loadData() {
   }
 }
 
-function saveData(data) {
-  try {
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
-  } catch (err) {
-    console.error("Fehler beim Speichern der Datei:", err);
-  }
-}
-
 // === CONFIG: E-Mail-Verteiler für Kriterien ===
 const criterionContacts = {
   "Maschine": { email: "dominik.alge@bruderer.com", label: "Technische Instandhaltung" },
@@ -62,12 +58,12 @@ const criterionContacts = {
   "NCP": { email: "dominik.alge@bruderer.com", label: "NC-Programmierung" },
   "Qualität": { email: "dominik.alge@bruderer.com", label: "Qualitätssicherung" },
   "Material": { email: "dominik.alge@bruderer.com", label: "Logistik & Lager" },
-  "Werkzeug": { email: "dominik.alge@bruderer.com", label: "Werkzeugbau" } // <-- Werkzeug für "Fräsen" ergänzt
+  "Werkzeug": { email: "dominik.alge@bruderer.com", label: "Werkzeugbau" }
 };
 
 // === MAIL-TRANSPORTER MIT FIXEM FALLBACK ===
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || '://bruderer.com', // <-- Ohne "://"
+  host: process.env.SMTP_HOST || '://bruderer.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
@@ -83,7 +79,7 @@ const sendStatusAlert = async (machineId, criterion, note, author) => {
   if (!contact || !contact.email) return;
 
   const mailOptions = {
-    from: `"FactoryAI Alert" <${process.env.SMTP_USER || 'shopfloor-alert@firma.com'}>`,
+    from: `"FactoryAI Alert" <${process.env.SMTP_USER || 'shopfloor-alert@bruderer.com'}>`,
     to: contact.email,
     subject: `⚠️ ALARM: Status ROT bei Spalte ${machineId} (${criterion})`,
     html: `<div style="font-family:Arial; border:2px solid #ef4444; padding:20px; border-radius:8px;">
@@ -103,16 +99,14 @@ const sendStatusAlert = async (machineId, criterion, note, author) => {
   }
 };
 
-// === API ENDPUNKTE (Echtes Multi-Mappen-System) ===
+// === API ENDPUNKTE ===
 
-// 1. Alle verfügbaren Mappen (Panels) für die Navigation abrufen
 app.get('/api/panels', (req, res) => {
   const data = loadData();
   const list = Object.keys(data).map(key => ({ id: key, name: data[key].name }));
   res.json(list);
 });
 
-// 2. Daten einer spezifischen Mappe abrufen
 app.get('/api/panel/:id', (req, res) => {
   const data = loadData();
   const panel = data[req.params.id];
@@ -120,7 +114,6 @@ app.get('/api/panel/:id', (req, res) => {
   res.json(panel);
 });
 
-// 3. Neue Mappe (Excel-Blatt) anlegen
 app.post('/api/panel', (req, res) => {
   const { id, name } = req.body;
   if (!id || !name) return res.status(400).json({ error: "id und name erforderlich" });
@@ -129,23 +122,21 @@ app.post('/api/panel', (req, res) => {
   if (data[id]) return res.status(400).json({ error: "ID existiert bereits" });
 
   data[id] = { name, machines: [], criteria: [], cells: {} };
-  saveData(data);
+  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
   res.json({ success: true, panels: data });
 });
 
-// 4. Struktur anpassen (Maschinen/Kriterien hinzufügen oder permanent löschen!)
 app.post('/api/panel/:id/structure', (req, res) => {
   const data = loadData();
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
 
-  const { action, type, value } = req.body; // action: 'add'/'delete', type: 'machine'/'criterion'
+  const { action, type, value } = req.body;
 
   if (type === 'machine') {
     if (action === 'add' && !panel.machines.includes(value)) panel.machines.push(value);
     if (action === 'delete') {
       panel.machines = panel.machines.filter(m => m !== value);
-      // Optionale Bereinigung verwaister Zellen
       Object.keys(panel.cells).forEach(k => { if (k.startsWith(`${value}-`)) delete panel.cells[k]; });
     }
   } else if (type === 'criterion') {
@@ -157,11 +148,10 @@ app.post('/api/panel/:id/structure', (req, res) => {
   }
 
   data[req.params.id] = panel;
-  saveData(data);
+  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
   res.json({ success: true, panel });
 });
 
-// 5. Ampel-Status in einer Mappe ändern
 app.post('/api/panel/:id/status', (req, res) => {
   const data = loadData();
   const panel = data[req.params.id];
@@ -183,7 +173,7 @@ app.post('/api/panel/:id/status', (req, res) => {
   }
 
   data[req.params.id] = panel;
-  saveData(data);
+  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
 
   if (status === 'red' && previousStatus !== 'red') {
     sendStatusAlert(machineId, criterion, note, author);
@@ -195,3 +185,4 @@ app.post('/api/panel/:id/status', (req, res) => {
 app.get('/', (req, res) => { res.send('<h1>FactoryAI Multi-Panel Engine läuft!</h1>'); });
 
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
+
