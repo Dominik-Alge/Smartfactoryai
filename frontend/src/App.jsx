@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import Matrix from './components/Matrix';
 import Modal from './components/Modal';
 
-// Erzwingt das Tailwind-Design direkt im Browser, falls der Cache blockiert
+// Erzwingt das echte Tailwind-Design direkt im Browser
 if (!document.getElementById('tailwind-cdn')) {
   const script = document.createElement('script');
   script.id = 'tailwind-cdn';
-  script.src = 'https://tailwindcss.com';
+  script.src = 'https://cdn.tailwindcss.com'; // <-- Das 'cdn.' vor tailwindcss ist der Schlüssel!
   document.head.appendChild(script);
 }
 
