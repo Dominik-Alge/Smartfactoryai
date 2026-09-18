@@ -1,20 +1,22 @@
-# 1. Nutzen der stabilen und schlanken Node.js Umgebung
-FROM node:18-alpine
+# === SCHRITT 1: Frontend bauen ===
+FROM node:18-alpine AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
 
-# 2. Arbeitsverzeichnis im Container erstellen und festlegen
+# === SCHRITT 2: Backend vorbereiten & alles zusammenführen ===
+FROM node:18-alpine
 WORKDIR /app
 
-# 3. Kopiere die package.json aus dem backend-Ordner in den Container
+# Backend-Abhängigkeiten installieren
 COPY backend/package*.json ./
-
-# 4. Installiere die im backend definierten Abhängigkeiten (express, cors)
 RUN npm install
+COPY backend/ ./
 
-# 5. Kopiere den gesamten Inhalt des backend-Ordners in den Container
-COPY backend/ .
+# Das fertig gebaute Frontend aus Schritt 1 in das Backend kopieren
+COPY --from=frontend-builder /frontend/dist ./public
 
-# 6. Öffne den Port 10000, den Render standardmäßig nutzt
 EXPOSE 10000
-
-# 7. Startbefehl für den Server (führt "node server.js" aus)
 CMD ["npm", "start"]
