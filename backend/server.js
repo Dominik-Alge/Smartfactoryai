@@ -182,29 +182,43 @@ app.post('/api/panel/:id/status', (req, res) => {
   res.json({ success: true, panel });
   });
   
-  // === FRONTEND ANBINDUNG (Dynamische Pfad-Ermittlung für Linux/Render) ===
-  // Ermittelt den absoluten Pfad zum Frontend-Dist-Ordner aus dem Hauptverzeichnis
-  const frontendDistPath = path.resolve(process.cwd(), '../frontend/dist');
+  // === FRONTEND ANBINDUNG (Fix für Render Docker-Pfad) ===
+
+  // Render speichert den Build unter /app/frontend/dist. 
+  // Wir prüfen diesen Pfad direkt ab:
+  const finalDistPath = '/app/frontend/dist';
   
-  // Falls das bei Render in einem Monorepo flach gebaut wird, nutzen wir diesen Fallback:
-  const finalDistPath = fs.existsSync(frontendDistPath) 
-    ? frontendDistPath 
-    : path.resolve(process.cwd(), 'frontend/dist');
+  console.log("[Render-Systemcheck] Versuche statische Dateien zu laden aus:", finalDistPath);
   
-  console.log("[Render-Check] Statische Dateien werden geladen aus:", finalDistPath);
+  if (!fs.existsSync(finalDistPath)) {
+    console.error("⚠️ WARNUNG: Der Pfad /app/frontend/dist wurde im Container nicht gefunden!");
+  } else {
+    console.log("✅ ERFOLG: Der Frontend-Ordner wurde erfolgreich lokalisiert.");
+  }
   
-  // Teilt Express mit, wo die gebauten Frontend-Dateien liegen
+  // Statische Dateien an Express übergeben
   app.use(express.static(finalDistPath));
   
-  // Liefert die Hauptseite der App aus, wenn man die Domain aufruft
+  // Alle URL-Anfragen an die index.html weiterleiten
   app.get('*', (req, res) => {
     const indexPath = path.join(finalDistPath, 'index.html');
+    
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
     } else {
-      res.status(404).send(`<h1>Fehler: index.html nicht gefunden</h1><p>Gezielter Suchpfad war: ${indexPath}</p>`);
+      res.status(404).send(`
+        <div style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
+          <h1 style="color: #ef4444;">⚠️ Shopfloor-Kompressionsfehler</h1>
+          <p>Der Server läuft, aber die Benutzeroberfläche wurde am Pfad nicht gefunden.</p>
+          <p style="background: #f1f5f9; padding: 10px; display: inline-block; border-radius: 6px;">
+            Gezielter Suchpfad: <strong>${indexPath}</strong>
+          </p>
+          <p style="color: #64748b; font-size: 13px;">Bitte starte das Deployment auf Render noch einmal neu.</p>
+        </div>
+      `);
     }
   });
+
 
 
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
