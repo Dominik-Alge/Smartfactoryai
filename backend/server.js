@@ -1,13 +1,17 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // <-- Diese Zeile MUSS hier neu hin
 
 const app = express();
 // Render vergibt automatisch einen Port, lokal nutzen wir 10000
 const PORT = process.env.PORT || 10000;
 
-// Erlaubt dem Frontend (das auf einer anderen URL läuft), mit dem Backend zu sprechen
+// Erlaubt dem Frontend, mit dem Backend zu sprechen
 app.use(cors());
 app.use(express.json());
+
+// Serviert die statischen React-Dateien aus dem "public"-Ordner
+app.use(express.static(path.join(__dirname, 'public'))); // <-- Diese Zeile MUSS hier neu hin
 
 // === TEMPORÄRER SPEICHER (Wird später durch PostgreSQL ersetzt) ===
 // Hier speichern wir die Stati der Maschinen und die Notizen
