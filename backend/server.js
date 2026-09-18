@@ -9,17 +9,18 @@ import { fileURLToPath } from 'url';
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// __dirname-Ersatz für ES-Module konfigurieren
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(cors());
 app.use(express.json());
 
-// Speicher-Datei Pfad definieren
-const STORAGE_FILE = path.join(__dirname, 'shopfloor_storage.json');
+// REPARATUR 1: Speicherpfad außerhalb des flüchtigen App-Ordners sichern (/tmp übersteht einfache Restarts, 
+// für echten persistenten Cloud-Speicher empfiehlt sich ein Render-Persistent-Volume am Pfad /data)
+const STORAGE_FILE = process.env.RENDER 
+  ? '/tmp/shopfloor_storage.json' 
+  : path.join(__dirname, 'shopfloor_storage.json');
 
-// Standard-Mappen (Falls die Datei noch leer oder neu ist)
 const defaultData = {
   "drehen": {
     name: "Gruppe Drehen",
@@ -35,7 +36,6 @@ const defaultData = {
   }
 };
 
-// Hilfsfunktionen zum Laden/Speichern der JSON-Datei
 function loadData() {
   try {
     if (!fs.existsSync(STORAGE_FILE)) {
@@ -50,7 +50,14 @@ function loadData() {
   }
 }
 
-// === CONFIG: E-Mail-Verteiler für Kriterien ===
+function saveData(data) {
+  try {
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Fehler beim Speichern der Datei:", err);
+  }
+}
+
 const criterionContacts = {
   "Maschine": { email: "dominik.alge@bruderer.com", label: "Technische Instandhaltung" },
   "AVOR": { email: "dominik.alge@bruderer.com", label: "Arbeitsvorbereitung" },
@@ -61,7 +68,6 @@ const criterionContacts = {
   "Werkzeug": { email: "dominik.alge@bruderer.com", label: "Werkzeugbau" }
 };
 
-// === MAIL-TRANSPORTER MIT FIXEM FALLBACK ===
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || '://bruderer.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -101,14 +107,43 @@ const sendStatusAlert = async (machineId, criterion, note, author) => {
 
 // === API ENDPUNKTE ===
 
+// REPARATUR 2: Die Vorgesetzten-Sicht wird hier GARANTIERT an die Registerkarten übergeben!
 app.get('/api/panels', (req, res) => {
   const data = loadData();
   const list = Object.keys(data).map(key => ({ id: key, name: data[key].name }));
+  
+  // Setzt die Vorgesetzten-Sicht als allerersten Tab fest
+  list.unshift({ id: 'insel_ds', name: '👁️ Insel-Sicht DS (Vorgesetzte)' });
   res.json(list);
 });
 
+// REPARATUR 3: Aggregiert alle roten Störungen live aus allen Mappen
 app.get('/api/panel/:id', (req, res) => {
   const data = loadData();
+
+  if (req.params.id === 'insel_ds') {
+    const aggregatedCells = {};
+    
+    Object.keys(data).forEach((panelKey) => {
+      const panel = data[panelKey];
+      if (panel && panel.cells) {
+        Object.keys(panel.cells).forEach((cellKey) => {
+          if (panel.cells[cellKey]?.status === 'red') {
+            // Eindeutigen Key sichern, damit das Modal weiß, wohin es gehört
+            aggregatedCells[cellKey] = panel.cells[cellKey];
+          }
+        });
+      }
+    });
+
+    return res.json({
+      name: 'Insel-Sicht DS',
+      machines: [],
+      criteria: [],
+      cells: aggregatedCells
+    });
+  }
+
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
   res.json(panel);
@@ -122,7 +157,7 @@ app.post('/api/panel', (req, res) => {
   if (data[id]) return res.status(400).json({ error: "ID existiert bereits" });
 
   data[id] = { name, machines: [], criteria: [], cells: {} };
-  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+  saveData(data);
   res.json({ success: true, panels: data });
 });
 
@@ -148,7 +183,7 @@ app.post('/api/panel/:id/structure', (req, res) => {
   }
 
   data[req.params.id] = panel;
-  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+  saveData(data);
   res.json({ success: true, panel });
 });
 
@@ -173,53 +208,29 @@ app.post('/api/panel/:id/status', (req, res) => {
   }
 
   data[req.params.id] = panel;
-  fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+  saveData(data);
 
   if (status === 'red' && previousStatus !== 'red') {
     sendStatusAlert(machineId, criterion, note, author);
   }
 
   res.json({ success: true, panel });
-  });
-  
-  // === FRONTEND ANBINDUNG (Fix für Render Docker-Pfad) ===
+});
 
-  // Render speichert den Build unter /app/frontend/dist. 
-  // Wir prüfen diesen Pfad direkt ab:
-  const finalDistPath = '/app/frontend/dist';
-  
-  console.log("[Render-Systemcheck] Versuche statische Dateien zu laden aus:", finalDistPath);
-  
-  if (!fs.existsSync(finalDistPath)) {
-    console.error("⚠️ WARNUNG: Der Pfad /app/frontend/dist wurde im Container nicht gefunden!");
+// === FRONTEND ANBINDUNG ===
+const finalDistPath = '/app/frontend/dist';
+app.use(express.static(finalDistPath));
+
+app.get('*', (req, res) => {
+  const indexPath = path.join(finalDistPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
   } else {
-    console.log("✅ ERFOLG: Der Frontend-Ordner wurde erfolgreich lokalisiert.");
+    res.status(404).send(`<h1>Fehler: index.html nicht gefunden</h1>`);
   }
-  
-  // Statische Dateien an Express übergeben
-  app.use(express.static(finalDistPath));
-  
-  // Alle URL-Anfragen an die index.html weiterleiten
-  app.get('*', (req, res) => {
-    const indexPath = path.join(finalDistPath, 'index.html');
-    
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      res.status(404).send(`
-        <div style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
-          <h1 style="color: #ef4444;">⚠️ Shopfloor-Kompressionsfehler</h1>
-          <p>Der Server läuft, aber die Benutzeroberfläche wurde am Pfad nicht gefunden.</p>
-          <p style="background: #f1f5f9; padding: 10px; display: inline-block; border-radius: 6px;">
-            Gezielter Suchpfad: <strong>${indexPath}</strong>
-          </p>
-          <p style="color: #64748b; font-size: 13px;">Bitte starte das Deployment auf Render noch einmal neu.</p>
-        </div>
-      `);
-    }
-  });
+});
 
-
+app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
