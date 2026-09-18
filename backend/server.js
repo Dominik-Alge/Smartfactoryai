@@ -65,17 +65,17 @@ const criterionContacts = {
   "Werkzeug": { email: "dominik.alge@bruderer.com", label: "Werkzeugbau" } // <-- Werkzeug für "Fräsen" ergänzt
 };
 
-// === MAIL-TRANSPORTER MIT DEBUGGING ===
+// === MAIL-TRANSPORTER MIT FIXEM FALLBACK ===
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || '://deinefirma.com',
+  host: process.env.SMTP_HOST || '://bruderer.com', // <-- Ohne "://"
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER || 'shopfloor-alert@firma.com',
+    user: process.env.SMTP_USER || 'shopfloor-alert@bruderer.com',
     pass: process.env.SMTP_PASS || 'DeinSicheresPasswort'
   },
-  debug: true,   // <-- NEU: Zeigt genaue SMTP-Protokolle im Render-Log
-  logger: true   // <-- NEU: Protokolliert jeden Schritt im Terminal/Cloud-Log
+  debug: true,
+  logger: true
 });
 
 const sendStatusAlert = async (machineId, criterion, note, author) => {
