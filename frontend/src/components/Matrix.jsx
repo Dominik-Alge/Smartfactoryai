@@ -19,10 +19,10 @@ export default function Matrix({ data, machines, criteria, onCellClick, onAddMac
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+    <div className="bg-slate-100 p-6 min-h-screen text-slate-800 font-sans">
       
       {/* Admin-Leiste zum Anpassen der Tabelle */}
-      <div className="p-4 bg-slate-50 border-b border-gray-200 flex flex-wrap gap-4 items-center justify-between">
+      <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-wrap gap-4 items-center justify-between">
         <div className="flex flex-wrap gap-4">
           {/* Maschine hinzufügen */}
           <form onSubmit={handleAddMachine} className="flex gap-2">
@@ -30,11 +30,11 @@ export default function Matrix({ data, machines, criteria, onCellClick, onAddMac
               type="text"
               value={newMachine}
               onChange={(e) => setNewMachine(e.target.value)}
-              placeholder="Neue Maschinen-ID..."
-              className="px-3 py-1 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Neue ID (z.B. 12771)..."
+              className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button type="submit" className="px-3 py-1 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition">
-              + Maschine
+            <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition">
+              + Spalte (Auftrag)
             </button>
           </form>
 
@@ -44,84 +44,107 @@ export default function Matrix({ data, machines, criteria, onCellClick, onAddMac
               type="text"
               value={newCriterion}
               onChange={(e) => setNewCriterion(e.target.value)}
-              placeholder="Neues Kriterium (z.B. Logistik)..."
-              className="px-3 py-1 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Neues Kriterium..."
+              className="px-3 py-1.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button type="submit" className="px-3 py-1 bg-slate-700 text-white text-sm font-semibold rounded-lg hover:bg-slate-800 transition">
-              + Kriterium
+            <button type="submit" className="px-4 py-1.5 bg-slate-700 text-white text-sm font-semibold rounded-lg hover:bg-slate-800 transition">
+              + Zeile (Kriterium)
             </button>
           </form>
         </div>
-        <span className="text-xs text-slate-400 font-medium">Konfigurations-Modus aktiv</span>
+        <span className="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-medium">Konfigurations-Modus aktiv</span>
       </div>
 
-      {/* Die dynamische Tabelle */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="bg-slate-100 border-b border-gray-200">
-              <th className="p-4 font-bold text-gray-700 text-sm min-w-[200px]">Kriterium</th>
-              {machines.map((m) => (
-                <th key={m} className="p-3 text-center text-xs font-bold text-gray-600 border-l border-gray-200/60 bg-gray-50/50 min-w-[80px]">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="tracking-wider">{m}</span>
-                    <button 
-                      onClick={() => onDeleteMachine(m)} 
-                      className="text-[10px] text-red-400 hover:text-red-600 transition font-normal"
-                      title="Maschine entfernen"
+      {/* Das Shopfloor-Panel */}
+      <div className="bg-white rounded-lg shadow-xl border border-gray-300 overflow-x-auto p-4">
+        {/* Dynamisches Grid basierend auf der Anzahl der Maschinen + 1 für die Titelspalte */}
+        <div 
+          className="grid min-w-max" 
+          style={{ gridTemplateColumns: `minmax(180px, 200px) repeat(${machines.length}, minmax(75px, 1fr))` }}
+        >
+          
+          {/* --- SPALTEN-KÖPFE (Maschinen-IDs & +24h) --- */}
+          {/* Ecke oben links */}
+          <div className="flex flex-col justify-end p-2 border-b-2 border-gray-300 font-bold text-gray-700 text-sm h-24">
+            <div className="leading-tight">Statusboard</div>
+            <div className="text-xs text-gray-500">Drehen</div>
+          </div>
+
+          {machines.map((m, index) => (
+            <div 
+              key={m} 
+              className={`flex flex-col items-center justify-between pt-3 pb-2 border-b-2 border-gray-300 h-24 text-center ${
+                index % 2 === 0 ? 'bg-gray-50/70' : 'bg-white'
+              }`}
+            >
+              <div className="flex flex-col items-center w-full px-1">
+                <span className="font-bold text-gray-900 text-sm tracking-tight [writing-mode:vertical-lr] rotate-180 md:[writing-mode:horizontal-tb] md:rotate-0">{m}</span>
+                <button 
+                  onClick={() => onDeleteMachine(m)} 
+                  className="text-[9px] text-red-400 hover:text-red-600 transition mt-0.5 opacity-0 hover:opacity-100 focus:opacity-100"
+                  title="Spalte entfernen"
+                >
+                  ✕
+                </button>
+              </div>
+              <span className="text-[11px] font-semibold text-gray-600 mt-auto">+24h</span>
+            </div>
+          ))}
+
+          {/* --- ZEILEN (Die Kriterien und Ampeln) --- */}
+          {criteria.map((criterion) => (
+            <React.Fragment key={criterion}>
+              
+              {/* Linke Beschriftung des Kriteriums */}
+              <div className="flex items-center justify-between p-3 font-bold text-gray-800 text-sm border-b border-gray-200 bg-white">
+                <span>{criterion}</span>
+                <button 
+                  onClick={() => onDeleteCriterion(criterion)} 
+                  className="text-[10px] text-red-300 hover:text-red-500 transition ml-2 opacity-0 hover:opacity-100"
+                  title="Kriterium entfernen"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Die Ampel-Zellen für dieses Kriterium quer durch alle Maschinen */}
+              {machines.map((machineId, index) => {
+                const cellData = data[`${machineId}-${criterion}`];
+                const isRed = cellData?.status === 'red';
+
+                return (
+                  <div 
+                    key={machineId} 
+                    className={`flex items-center justify-center p-2.5 border-b border-gray-200 transition-colors ${
+                      index % 2 === 0 ? 'bg-gray-50/70' : 'bg-white'
+                    }`}
+                  >
+                    <button
+                      onClick={() => onCellClick(machineId, criterion)}
+                      className={`w-7 h-7 rounded-full transition-all duration-150 transform hover:scale-110 border relative cursor-pointer focus:outline-none flex items-center justify-center ${
+                        isRed
+                          ? 'bg-gradient-to-tr from-red-600 via-red-500 to-red-400 border-red-700 shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.4),0_2px_4px_rgba(239,68,68,0.4)] animate-pulse'
+                          : 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-emerald-400 border-emerald-700 shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.4),0_2px_4px_rgba(16,185,129,0.3)]'
+                      }`}
                     >
-                      [Löschen]
+                      {/* Echter 3D-Lichtreflex-Punkt (Glossy Effekt aus dem Bild) */}
+                      <div className="absolute top-1 left-1.5 w-2 h-1 bg-white/40 rounded-full blur-[0.2px]"></div>
                     </button>
                   </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {criteria.map((criterion) => (
-              <tr key={criterion} className="hover:bg-slate-50/50 transition-colors">
-                <td className="p-4 font-semibold text-gray-800 text-sm flex justify-between items-center bg-white sticky left-0 z-10 shadow-sm">
-                  <span>{criterion}</span>
-                  <button 
-                    onClick={() => onDeleteCriterion(criterion)} 
-                    className="text-[10px] text-red-300 hover:text-red-500 transition font-normal ml-2"
-                    title="Kriterium entfernen"
-                  >
-                    ✕
-                  </button>
-                </td>
-                {machines.map((machineId) => {
-                  const cellData = data[`${machineId}-${criterion}`];
-                  const isRed = cellData?.status === 'red';
+                );
+              })}
+            </React.Fragment>
+          ))}
 
-                  return (
-                    <td key={machineId} className="p-3 text-center border-l border-gray-100">
-                      <button
-                        onClick={() => onCellClick(machineId, criterion)}
-                        className={`w-8 h-8 rounded-full transition-all duration-200 transform hover:scale-110 border flex items-center justify-center relative cursor-pointer ${
-                          isRed
-                            ? 'bg-red-500 border-red-600 shadow-md shadow-red-200 animate-pulse'
-                            : 'bg-emerald-500 border-emerald-600 shadow-sm shadow-emerald-100'
-                        }`}
-                      >
-                        <div className="absolute top-0.5 left-1 w-2 h-1.5 bg-white/20 rounded-full blur-[0.5px]"></div>
-                      </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-            {criteria.length === 0 && (
-              <tr>
-                <td colSpan={machines.length + 1} className="p-8 text-center text-sm text-gray-400">
-                  Keine Kriterien vorhanden. Füge oben ein Kriterium hinzu, um die Matrix zu starten.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        </div>
+
+        {/* Leeres Board-Hinweis */}
+        {criteria.length === 0 && (
+          <div className="p-8 text-center text-sm text-gray-400 bg-gray-50 rounded-b-lg border-t border-gray-200">
+            Keine Kriterien vorhanden. Füge oben ein Kriterium hinzu, um das Board aufzubauen.
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
