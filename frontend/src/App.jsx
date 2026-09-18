@@ -3,7 +3,7 @@ import Matrix from './components/Matrix';
 import Modal from './components/Modal';
 
 // === WICHTIG: Ersetze dies mit deiner echten Render-URL ===
-const API_URL = "HIER_DEINE_RENDER_BACKEND_URL_EINTRAGEN";
+const API_URL = window.location.origin;
 
 export default function App() {
   const [backendData, setBackendData] = useState({});
