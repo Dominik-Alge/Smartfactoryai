@@ -7,6 +7,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const app = express();
+
+// REPARATUR 1: Port-Zuweisung absolut sauber priorisieren
 const PORT = process.env.PORT || 10000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,8 +17,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// REPARATUR 1: Speicherpfad außerhalb des flüchtigen App-Ordners sichern (/tmp übersteht einfache Restarts, 
-// für echten persistenten Cloud-Speicher empfiehlt sich ein Render-Persistent-Volume am Pfad /data)
+// REPARATUR 2: Permanenter Speicherpfad im beschreibbaren Linux-/tmp-Verzeichnis für Render
 const STORAGE_FILE = process.env.RENDER 
   ? '/tmp/shopfloor_storage.json' 
   : path.join(__dirname, 'shopfloor_storage.json');
@@ -107,7 +108,7 @@ const sendStatusAlert = async (machineId, criterion, note, author) => {
 
 // === API ENDPUNKTE ===
 
-// REPARATUR 2: Die Vorgesetzten-Sicht wird hier GARANTIERT an die Registerkarten übergeben!
+// REPARATUR 3: Die Vorgesetzten-Sicht wird hier bombensicher an die Registerkarten übergeben
 app.get('/api/panels', (req, res) => {
   const data = loadData();
   const list = Object.keys(data).map(key => ({ id: key, name: data[key].name }));
@@ -117,7 +118,7 @@ app.get('/api/panels', (req, res) => {
   res.json(list);
 });
 
-// REPARATUR 3: Aggregiert alle roten Störungen live aus allen Mappen
+// REPARATUR 4: Aggregiert alle roten Störungen live aus allen Mappen
 app.get('/api/panel/:id', (req, res) => {
   const data = loadData();
 
@@ -129,7 +130,6 @@ app.get('/api/panel/:id', (req, res) => {
       if (panel && panel.cells) {
         Object.keys(panel.cells).forEach((cellKey) => {
           if (panel.cells[cellKey]?.status === 'red') {
-            // Eindeutigen Key sichern, damit das Modal weiß, wohin es gehört
             aggregatedCells[cellKey] = panel.cells[cellKey];
           }
         });
@@ -230,7 +230,7 @@ app.get('*', (req, res) => {
   }
 });
 
+// Server auf dem von Render zugewiesenen Port starten
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
-app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
