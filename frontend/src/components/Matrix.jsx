@@ -1,11 +1,33 @@
 import React, { useState } from 'react';
-
-export default function Matrix({ data = {}, machines = [], criteria = [], onCellClick, onAddMachine, onAddCriterion, onDeleteMachine, onDeleteCriterion }) {
+export default function Matrix({ 
+  data = {}, 
+  machines = [], 
+  criteria = [], 
+  currentPanelName = '', // <--- Das hier haben wir hinzugefügt
+  onCellClick, 
+  onAddMachine, 
+  onAddCriterion, 
+  onDeleteMachine, 
+  onDeleteCriterion 
+}) {
   const [newMachine, setNewMachine] = useState('');
   const [newCriterion, setNewCriterion] = useState('');
 
   return (
     <div style={{ fontFamily: '"Inter", "Segoe UI", sans-serif', color: '#0f172a', padding: '0 2px' }}>
+      {/* Konfigurations-Leiste (Modern & Dezent) */}
+      <div style={{
+        backgroundColor: '#ffffff',
+        padding: '16px 24px',
+        borderRadius: '16px',
+        border: '1px solid #e2e8f0',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '16px',
+        alignItems: 'center',
+        marginBottom: '24px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+      }}>
       
       {/* Konfigurations-Leiste (Modern & Dezent) */}
       <div style={{
