@@ -182,14 +182,30 @@ app.post('/api/panel/:id/status', (req, res) => {
   res.json({ success: true, panel });
   });
   
-  // === FRONTEND ANBINDUNG (Verbindet Server und Oberfläche) ===
+  // === FRONTEND ANBINDUNG (Dynamische Pfad-Ermittlung für Linux/Render) ===
+  // Ermittelt den absoluten Pfad zum Frontend-Dist-Ordner aus dem Hauptverzeichnis
+  const frontendDistPath = path.resolve(process.cwd(), '../frontend/dist');
+  
+  // Falls das bei Render in einem Monorepo flach gebaut wird, nutzen wir diesen Fallback:
+  const finalDistPath = fs.existsSync(frontendDistPath) 
+    ? frontendDistPath 
+    : path.resolve(process.cwd(), 'frontend/dist');
+  
+  console.log("[Render-Check] Statische Dateien werden geladen aus:", finalDistPath);
+  
   // Teilt Express mit, wo die gebauten Frontend-Dateien liegen
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  app.use(express.static(finalDistPath));
   
   // Liefert die Hauptseite der App aus, wenn man die Domain aufruft
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+    const indexPath = path.join(finalDistPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send(`<h1>Fehler: index.html nicht gefunden</h1><p>Gezielter Suchpfad war: ${indexPath}</p>`);
+    }
   });
+
 
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
