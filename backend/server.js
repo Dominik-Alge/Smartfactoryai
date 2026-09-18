@@ -17,6 +17,9 @@ let shopfloorData = {
 
 // === API ENDPUNKTE ===
 
+// Serviert die statischen React-Dateien aus dem "public"-Ordner
+app.use(express.static(path.join(__dirname, 'public')));
+
 // 1. Alle aktuellen Zustände abrufen
 app.get('/api/status', (req, res) => {
   res.json(shopfloorData);
