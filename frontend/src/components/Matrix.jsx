@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+
 export default function Matrix({ 
   data = {}, 
   machines = [], 
   criteria = [], 
-  currentPanelName = '', // <--- Das hier haben wir hinzugefügt
+  currentPanelName = '', 
   onCellClick, 
   onAddMachine, 
   onAddCriterion, 
@@ -15,19 +16,6 @@ export default function Matrix({
 
   return (
     <div style={{ fontFamily: '"Inter", "Segoe UI", sans-serif', color: '#0f172a', padding: '0 2px' }}>
-      {/* Konfigurations-Leiste (Modern & Dezent) */}
-      <div style={{
-        backgroundColor: '#ffffff',
-        padding: '16px 24px',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '16px',
-        alignItems: 'center',
-        marginBottom: '24px',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-      }}>
       
       {/* Konfigurations-Leiste (Modern & Dezent) */}
       <div style={{
@@ -82,14 +70,14 @@ export default function Matrix({
               {/* Haupt-Header Zelle links oben */}
               <th style={{ width: '220px', minWidth: '220px', padding: '20px 24px', textAlign: 'left', borderRight: '1px solid #e2e8f0', verticalAlign: 'middle' }}>
                 <div style={{ fontSize: '16px', fontWeight: '800', letterSpacing: '-0.5px', color: '#0f172a' }}>Statusboard</div>
-                <div style={{ fontSize: '13px', color: '#3b82f6', fontWeight: '700', marginTop: '2px' }}>Drehen</div>
+                <div style={{ fontSize: '13px', color: '#3b82f6', fontWeight: '700', marginTop: '2px' }}>
+                  {currentPanelName ? currentPanelName.replace('Gruppe ', '') : 'Wird geladen...'}
+                </div>
               </th>
 
               {/* Maschinen-Köpfe */}
               {machines.map((m) => (
                 <th key={m} style={{ width: '90px', minWidth: '90px', padding: '16px 8px', borderRight: '1px solid #e2e8f0', verticalAlign: 'middle', position: 'relative', textAlign: 'center' }}>
-                  
-                  {/* Eleganter Löschen-Button oben rechts in der Ecke */}
                   <button 
                     onClick={() => onDeleteMachine(m)} 
                     style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', color: '#ef4444', backgroundColor: '#fee2e2', border: 'none', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
@@ -97,13 +85,11 @@ export default function Matrix({
                   >
                     ✕
                   </button>
-
                   <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '2px' }}>{m}</div>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8' }}>+24h</div>
                 </th>
               ))}
               
-              {/* Flexibler Platzhalter rechts, damit die Tabelle das Board voll ausfüllt */}
               <th style={{ backgroundColor: '#f8fafc' }}></th>
             </tr>
           </thead>
@@ -116,8 +102,6 @@ export default function Matrix({
                 <td style={{ padding: '16px 24px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                     <span style={{ fontWeight: '700', fontSize: '14px', color: '#334155', tracking: '-0.2px' }}>{criterion}</span>
-                    
-                    {/* Minimalistischer Löschen-Button für das Kriterium */}
                     <button 
                       onClick={() => onDeleteCriterion(criterion)} 
                       style={{ fontSize: '10px', color: '#ef4444', backgroundColor: '#fee2e2', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: '0', transition: 'all 0.15s' }}
@@ -152,21 +136,16 @@ export default function Matrix({
                             cursor: 'pointer',
                             position: 'relative',
                             outline: 'none',
-                            padding: '0',
-                            transition: 'transform 0.1s ease-in-out'
+                            padding: '0'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.12)'}
-                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         >
-                          {/* Innerer, ultra-realistischer Glanzpunkt */}
-                          <div style={{ position: 'absolute', top: '3px', left: '6px', width: '7px', height: '4px', backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: '50%', filter: 'blur(0.2px)' }}></div>
+                          <div style={{ position: 'absolute', top: '3px', left: '6px', width: '7px', height: '4px', backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: '50%' }}></div>
                         </button>
                       </div>
                     </td>
                   );
                 })}
 
-                {/* Leere Tabellenzelle rechts für das optische Gleichgewicht */}
                 <td style={{ backgroundColor: '#ffffff' }}></td>
               </tr>
             ))}
