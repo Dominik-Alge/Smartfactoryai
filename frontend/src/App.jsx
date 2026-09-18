@@ -6,29 +6,44 @@ import Modal from './components/Modal';
 if (!document.getElementById('tailwind-cdn')) {
   const script = document.createElement('script');
   script.id = 'tailwind-cdn';
-  script.src = 'https://cdn.tailwindcss.com'; // <-- Das 'cdn.' vor tailwindcss ist der Schlüssel!
+  script.src = 'https://tailwindcss.com';
   document.head.appendChild(script);
 }
 
 const API_URL = window.location.origin;
 
 export default function App() {
-  const [backendData, setBackendData] = useState({});
+  const [panels, setPanels] = useState([]); // Liste aller Excel-Mappen
+  const [activePanelId, setActivePanelId] = useState('drehen'); // Aktive Mappe
+  const [panelData, setPanelData] = useState({ name: '', machines: [], criteria: [], cells: {} });
+  
   const [modalConfig, setModalConfig] = useState({ isOpen: false, machineId: '', criterion: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Dynamische Listen (mit deinen Vorschlägen als Startwerte)
-  const [machines, setMachines] = useState(["12771", "12772", "12773", "12774", "12766"]);
-  const [criteria, setCriteria] = useState(["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"]);
-
-  const fetchStatusData = async () => {
+  // 1. Liste aller verfügbaren Mappen (Panels) laden
+  const fetchPanels = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/status`);
-      if (!response.ok) throw new Error('API-Fehler');
+      const response = await fetch(`${API_URL}/api/panels`);
+      if (!response.ok) throw new Error('API-Fehler bei Mappen-Liste');
       const data = await response.json();
-      setBackendData(data);
-      setError(null);
+      setPanels(data);
+      if (data.length > 0 && !data.find(p => p.id === activePanelId)) {
+        setActivePanelId(data[0].id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 2. Daten der aktuell ausgewählten Mappe laden
+  const fetchActivePanelData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}`);
+      if (!response.ok) throw new Error('API-Fehler bei Panel-Daten');
+      const data = await response.json();
+      setPanelData(data);
+      setError(null); // Verbindung steht -> Fehler löschen
     } catch (err) {
       console.error(err);
       setError("Verbindung zum Live-Server fehlgeschlagen.");
@@ -37,30 +52,72 @@ export default function App() {
     }
   };
 
+  // Initiales Laden und Intervall für Live-Synchronisation
   useEffect(() => {
-    fetchStatusData();
-    const interval = setInterval(fetchStatusData, 10000);
-    return () => clearInterval(interval);
+    fetchPanels();
   }, []);
 
-  // Funktionen zur dynamischen Anpassung der Matrix
-  const handleAddMachine = (newId) => {
-    if (!machines.includes(newId)) setMachines([...machines, newId]);
-  };
+  useEffect(() => {
+    fetchActivePanelData();
+    const interval = setInterval(fetchActivePanelData, 3000); // Alle 3 Sekunden syncen
+    return () => clearInterval(interval);
+  }, [activePanelId]);
 
-  const handleAddCriterion = (newCrit) => {
-    if (!criteria.includes(newCrit)) setCriteria([...criteria, newCrit]);
-  };
-
-  const handleDeleteMachine = (id) => {
-    if (window.confirm(`Maschine ${id} wirklich aus der Ansicht entfernen?`)) {
-      setMachines(machines.filter(m => m !== id));
+  // 3. Neue Maschine permanent hinzufügen
+  const handleAddMachine = async (newId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', type: 'machine', value: newId })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Hinzufügen der Maschine:", err);
     }
   };
 
-  const handleDeleteCriterion = (crit) => {
-    if (window.confirm(`Kriterium "${crit}" wirklich entfernen?`)) {
-      setCriteria(criteria.filter(c => c !== crit));
+  // 4. Neues Kriterium permanent hinzufügen
+  const handleAddCriterion = async (newCrit) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', type: 'criterion', value: newCrit })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Hinzufügen des Kriteriums:", err);
+    }
+  };
+
+  // 5. Maschine permanent aus Backend löschen
+  const handleDeleteMachine = async (id) => {
+    if (!window.confirm(`Maschine ${id} wirklich permanent aus der Datenbank löschen?`)) return;
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', type: 'machine', value: id })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Löschen:", err);
+    }
+  };
+
+  // 6. Kriterium permanent aus Backend löschen
+  const handleDeleteCriterion = async (crit) => {
+    if (!window.confirm(`Kriterium "${crit}" wirklich permanent aus der Datenbank löschen?`)) return;
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', type: 'criterion', value: crit })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Löschen:", err);
     }
   };
 
@@ -68,95 +125,128 @@ export default function App() {
     setModalConfig({ isOpen: true, machineId, criterion });
   };
 
+  // 7. Ampel-Status ändern und Notiz speichern
   const handleSaveStatus = async (machineId, criterion, status, note, author) => {
     try {
-      await fetch(`${API_URL}/api/status`, {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ machineId, criterion, status, note, author })
       });
-      await fetchStatusData();
-      setModalConfig({ isOpen: false, machineId: '', criterion: '' });
+      
+      if (!response.ok) throw new Error('Speichern fehlgeschlagen');
+      
+      fetchActivePanelData(); // UI sofort neu laden
+      setModalConfig({ isOpen: false, machineId: '', criterion: '' }); // Modal schließen
     } catch (err) {
-      alert("Fehler beim Speichern.");
+      alert("Fehler beim Speichern des Status!");
+      console.error(err);
     }
   };
 
-  const handleResetToGreen = async (machineId, criterion) => {
-    if (window.confirm(`Problem bei Maschine ${machineId} als erledigt markieren?`)) {
-      await handleSaveStatus(machineId, criterion, 'green', 'Problem behoben / Status zurückgesetzt', 'System');
+  // Funktion zum Erstellen einer komplett neuen Mappe (Excel-Mappe)
+  const handleCreateNewPanel = async () => {
+    const name = prompt("Name der neuen Produktionsgruppe (z.B. Gruppe Fräsen):");
+    if (!name) return;
+    const id = name.toLowerCase().replace(/[^a-z0-9]/g, ""); // Macht "Gruppe Fräsen" zu "gruppefrsen"
+    
+    try {
+      const response = await fetch(`${API_URL}/api/panel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name })
+      });
+      if (response.ok) {
+        await fetchPanels();
+        setActivePanelId(id);
+      } else {
+        alert("Mappe existiert bereits oder Name ist ungültig.");
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
-
-  const activeCellKey = `${modalConfig.machineId}-${modalConfig.criterion}`;
 
   return (
-    <div className="min-h-screen bg-slate-100 py-6 px-4 font-sans antialiased text-slate-900">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="bg-slate-50 min-h-screen p-4 md:p-8 font-sans">
+      {/* Header-Leiste */}
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">FactoryAI — Shopfloor Panel</h1>
+          <p className="text-sm font-semibold text-blue-600 mt-1">Ebene: {panelData.name || 'Wird geladen...'}</p>
+        </div>
         
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-xl shadow-md border border-slate-200 gap-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight">FactoryAI — Shopfloor Panel</h1>
-            <p className="text-sm text-slate-500 mt-1">Ebene: <span className="font-bold text-blue-600">Produktionsübersicht (Gruppe Drehen)</span></p>
-          </div>
-          <div className="flex gap-2">
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span> Live synchronisiert
-            </span>
-          </div>
-        </header>
-
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm text-red-700 text-sm font-medium">
-            ⚠️ {error}
-          </div>
-        )}
-
-        {/* Haupt-Matrix */}
-        {loading ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow-md border text-slate-500">
-            Lade Konfiguration...
-          </div>
+        {/* DYNAMISCHER VERBINDUNGS-BADGE (Kein Witz mehr!) */}
+        {error ? (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Verbindung getrennt
+          </span>
         ) : (
-          <Matrix 
-            data={backendData} 
-            machines={machines}
-            criteria={criteria}
-            onCellClick={handleCellClick}
-            onAddMachine={handleAddMachine}
-            onAddCriterion={handleAddCriterion}
-            onDeleteMachine={handleDeleteMachine}
-            onDeleteCriterion={handleDeleteCriterion}
-          />
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            Live synchronisiert
+          </span>
         )}
+      </div>
 
-        <footer className="bg-white p-4 rounded-xl shadow-md border border-slate-200 text-center text-xs text-slate-400">
-          FactoryAI Pilotphase • Jede Änderung an Struktur oder Status ist sofort für alle Stationen sichtbar.
-        </footer>
+      {/* DYNAMISCHE EXCEL-REGISTERKARTEN (Mappen-Auswahl) */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-200 pb-2">
+        {panels.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setActivePanelId(p.id)}
+            className={`px-4 py-2 text-sm font-bold rounded-t-lg transition border-t border-x -mb-[9px] ${
+              activePanelId === p.id
+                ? 'bg-white text-blue-600 border-gray-200 shadow-sm z-10'
+                : 'bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200'
+            }`}
+          >
+            📊 {p.name}
+          </button>
+        ))}
+        <button 
+          onClick={handleCreateNewPanel}
+          className="px-3 py-1.5 text-xs font-bold bg-gray-200 text-gray-700 hover:bg-slate-700 hover:text-white rounded-lg transition ml-2 shadow-sm"
+        >
+          + Neue Mappe
+        </button>
+      </div>
 
-        {/* Popup */}
-        <Modal
+      {/* Roter Fehlerbalken erscheint NUR, wenn wirklich ein Fehler da ist */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl text-red-800 font-medium text-sm flex items-center gap-2 shadow-sm">
+          ⚠️ {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-12 text-slate-500 font-medium">Lade Panel-Daten...</div>
+      ) : (
+        <Matrix 
+          data={panelData.cells}
+          machines={panelData.machines}
+          criteria={panelData.criteria}
+          onCellClick={handleCellClick}
+          onAddMachine={handleAddMachine}
+          onAddCriterion={handleAddCriterion}
+          onDeleteMachine={handleDeleteMachine}
+          onDeleteCriterion={handleDeleteCriterion}
+        />
+      )}
+
+      {/* Modal Popup für Status-Wechsel */}
+      {modalConfig.isOpen && (
+        <Modal 
           isOpen={modalConfig.isOpen}
-          onClose={() => setModalConfig({ isOpen: false, machineId: '', criterion: '' })}
           machineId={modalConfig.machineId}
           criterion={modalConfig.criterion}
-          currentData={backendData[activeCellKey]}
+          currentData={panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`] || { status: 'green', notes: [] }}
+          onClose={() => setModalConfig({ isOpen: false, machineId: '', criterion: '' })}
           onSave={handleSaveStatus}
         />
-
-        {modalConfig.isOpen && backendData[activeCellKey]?.status === 'red' && (
-          <div className="fixed bottom-12 left-1/2 transform -translate-x-1/2 z-50">
-            <button
-              onClick={() => handleResetToGreen(modalConfig.machineId, modalConfig.criterion)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-full shadow-xl transition active:scale-95 border border-emerald-500"
-            >
-              ✓ Problem gelöst (Wieder Grün schalten)
-            </button>
-          </div>
-        )}
-
-      </div>
+      )}
     </div>
   );
 }
+
