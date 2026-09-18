@@ -28,48 +28,56 @@ export default function App() {
       if (!response.ok) throw new Error('API-Fehler bei Mappen-Liste');
       const data = await response.json();
       setPanels(data);
-      if (data.length > 0 && !data.find(p => p.id === activePanelId)) {
+      
+      // Falls die aktive Panel-ID nicht in den geladenen Panels existiert, nimm das erste
+      if (data.length > 0 && !data.some(p => p.id === activePanelId)) {
         setActivePanelId(data[0].id);
       }
     } catch (err) {
       console.error(err);
+      setError('Verbindung zum Server fehlgeschlagen.');
     }
   };
 
-  // 2. Daten der aktuell ausgewählten Mappe laden
+  // 2. Daten für die aktuell aktive Mappe laden
   const fetchActivePanelData = async () => {
+    if (!activePanelId) return;
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/panel/${activePanelId}`);
-      if (!response.ok) throw new Error('API-Fehler bei Panel-Daten');
+      if (!response.ok) throw new Error('Fehler beim Laden der Panel-Daten');
       const data = await response.json();
-      setPanelData(data);
-      setError(null); // Verbindung steht -> Fehler löschen
+      setPanelData({
+        name: data.name || '',
+        machines: data.machines || [],
+        criteria: data.criteria || [],
+        cells: data.cells || {}
+      });
+      setError(null);
     } catch (err) {
       console.error(err);
-      setError("Verbindung zum Live-Server fehlgeschlagen.");
+      setError('Fehler beim Abrufen der Board-Daten.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Initiales Laden und Intervall für Live-Synchronisation
+  // Lifecycle-Trigger bei App-Start und Mappen-Wechsel
   useEffect(() => {
     fetchPanels();
   }, []);
 
   useEffect(() => {
     fetchActivePanelData();
-    const interval = setInterval(fetchActivePanelData, 3000); // Alle 3 Sekunden syncen
-    return () => clearInterval(interval);
   }, [activePanelId]);
 
-  // 3. Neue Maschine permanent hinzufügen
-  const handleAddMachine = async (newId) => {
+  // 3. Maschine hinzufügen
+  const handleAddMachine = async (machineId) => {
     try {
       const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', type: 'machine', value: newId })
+        body: JSON.stringify({ action: 'add', type: 'machine', value: machineId })
       });
       if (response.ok) fetchActivePanelData();
     } catch (err) {
@@ -77,13 +85,13 @@ export default function App() {
     }
   };
 
-  // 4. Neues Kriterium permanent hinzufügen
-  const handleAddCriterion = async (newCrit) => {
+  // 4. Kriterium hinzufügen
+  const handleAddCriterion = async (criterionName) => {
     try {
       const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', type: 'criterion', value: newCrit })
+        body: JSON.stringify({ action: 'add', type: 'criterion', value: criterionName })
       });
       if (response.ok) fetchActivePanelData();
     } catch (err) {
@@ -92,13 +100,13 @@ export default function App() {
   };
 
   // 5. Maschine permanent aus Backend löschen
-  const handleDeleteMachine = async (id) => {
-    if (!window.confirm(`Maschine ${id} wirklich permanent aus der Datenbank löschen?`)) return;
+  const handleDeleteMachine = async (machineId) => {
+    if (!window.confirm(`Spalte "${machineId}" wirklich permanent aus der Datenbank löschen?`)) return;
     try {
       const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', type: 'machine', value: id })
+        body: JSON.stringify({ action: 'delete', type: 'machine', value: machineId })
       });
       if (response.ok) fetchActivePanelData();
     } catch (err) {
@@ -148,7 +156,7 @@ export default function App() {
   const handleCreateNewPanel = async () => {
     const name = prompt("Name der neuen Produktionsgruppe (z.B. Gruppe Fräsen):");
     if (!name) return;
-    const id = name.toLowerCase().replace(/[^a-z0-9]/g, ""); // Macht "Gruppe Fräsen" zu "gruppefrsen"
+    const id = name.toLowerCase().replace(/[^a-z0-9]/g, ""); // Macht "Gruppe Fräsen" zu "gruppefrasen"
     
     try {
       const response = await fetch(`${API_URL}/api/panel`, {
@@ -176,7 +184,7 @@ export default function App() {
           <p className="text-sm font-semibold text-blue-600 mt-1">Ebene: {panelData.name || 'Wird geladen...'}</p>
         </div>
         
-        {/* DYNAMISCHER VERBINDUNGS-BADGE (Kein Witz mehr!) */}
+        {/* DYNAMISCHER VERBINDUNGS-BADGE */}
         {error ? (
           <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200 animate-pulse">
             <span className="w-2 h-2 rounded-full bg-red-500"></span>
@@ -249,4 +257,3 @@ export default function App() {
     </div>
   );
 }
-
