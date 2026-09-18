@@ -1,18 +1,60 @@
+// backend/server.js
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const nodemailer = require('nodemailer'); // <-- NEU: Für den Mailversand
+const nodemailer = require('nodemailer');
+const fs = require('fs'); // <-- NEU: Für dauerhafte Speicherung als Datei
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
-
-// Serviert die statischen React-Dateien aus dem "public"-Ordner
 app.use(express.static(path.join(__dirname, 'public')));
 
-// === CONFIG: E-Mail-Zuständigkeiten für die Kriterien ===
+// Speicher-Datei Pfad definieren
+const STORAGE_FILE = path.join(__dirname, 'shopfloor_storage.json');
+
+// Standard-Mappen (Falls die Datei noch leer oder neu ist)
+const defaultData = {
+  "drehen": {
+    name: "Gruppe Drehen",
+    machines: ["12771", "12772", "12773", "12774", "12766"],
+    criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
+    cells: {} // Hier landen die Stati: "12771-AVOR": { status: "green", notes: [] }
+  },
+  "fraesen": {
+    name: "Gruppe Fräsen",
+    machines: ["20101", "20102"],
+    criteria: ["Maschine", "AVOR", "Werkzeug", "Qualität"],
+    cells: {}
+  }
+};
+
+// Hilfsfunktionen zum Laden/Speichern der JSON-Datei
+function loadData() {
+  try {
+    if (!fs.existsSync(STORAGE_FILE)) {
+      fs.writeFileSync(STORAGE_FILE, JSON.stringify(defaultData, null, 2));
+      return defaultData;
+    }
+    const raw = fs.readFileSync(STORAGE_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("Fehler beim Laden der Speicherdatei:", err);
+    return defaultData;
+  }
+}
+
+function saveData(data) {
+  try {
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Fehler beim Speichern der Datei:", err);
+  }
+}
+
+// === CONFIG: E-Mail-Verteiler für Kriterien ===
 const criterionContacts = {
   "Maschine": { email: "instandhaltung@firma.com", label: "Technische Instandhaltung" },
   "AVOR": { email: "avor.team@firma.com", label: "Arbeitsvorbereitung" },
@@ -22,7 +64,7 @@ const criterionContacts = {
   "Material": { email: "logistik@firma.com", label: "Logistik & Lager" }
 };
 
-// === CONFIG: Mailserver (Nutzt Umgebungsvariablen aus der .env) ===
+// === MAIL-TRANSPORTER MIT DEBUGGING ===
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || '://deinefirma.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -30,117 +72,125 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.SMTP_USER || 'shopfloor-alert@firma.com',
     pass: process.env.SMTP_PASS || 'DeinSicheresPasswort'
-  }
+  },
+  debug: true,   // <-- NEU: Zeigt genaue SMTP-Protokolle im Render-Log
+  logger: true   // <-- NEU: Protokolliert jeden Schritt im Terminal/Cloud-Log
 });
 
-// === HILFSFUNKTION: E-Mail senden ===
 const sendStatusAlert = async (machineId, criterion, note, author) => {
   const contact = criterionContacts[criterion];
-  
-  if (!contact || !contact.email) {
-    console.log(`[Email] Keine E-Mail-Adresse für Kriterium "${criterion}" hinterlegt.`);
-    return;
-  }
+  if (!contact || !contact.email) return;
 
   const mailOptions = {
     from: `"FactoryAI Alert" <${process.env.SMTP_USER || 'shopfloor-alert@firma.com'}>`,
     to: contact.email,
     subject: `⚠️ ALARM: Status ROT bei Spalte ${machineId} (${criterion})`,
-    html: `
-      <div style="font-family: Arial, sans-serif; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; max-width: 600px;">
-        <h2 style="color: #ef4444; margin-top: 0;">⚠️ Shopfloor Alert – Handlungsbedarf!</h2>
-        <p>Am Shopfloor-Panel wurde soeben ein Kriterium auf <strong>ROT</strong> gesetzt.</p>
-        
-        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-          <tr style="background-color: #f8fafc;">
-            <td style="padding: 8px; font-weight: bold; border-bottom: 1px solid #e2e8f0; width: 40%;">Maschine / Spalte:</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${machineId}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-weight: bold; border-bottom: 1px solid #e2e8f0;">Kriterium / Bereich:</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${criterion} (${contact.label})</td>
-          </tr>
-          <tr style="background-color: #f8fafc;">
-            <td style="padding: 8px; font-weight: bold; border-bottom: 1px solid #e2e8f0;">Gemeldet von:</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${author || 'Mitarbeiter am Terminal'}</td>
-          </tr>
-        </table>
-
-        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; margin-top: 15px;">
-          <strong>Hinterlegte Notiz / Grund:</strong><br>
-          <span style="font-style: italic; color: #991b1b;">"${note || 'Keine nähere Beschreibung angegeben.'}"</span>
-        </div>
-
-        <p style="font-size: 12px; color: #64748b; margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
-          Diese E-Mail wurde automatisch vom FactoryAI Shopfloor-System generiert. Bitte nicht direkt antworten.
-        </p>
-      </div>
-    `
+    html: `<div style="font-family:Arial; border:2px solid #ef4444; padding:20px; border-radius:8px;">
+            <h2 style="color:#ef4444;">⚠️ Shopfloor Alert</h2>
+            <p><strong>Bereich:</strong> ${criterion} (${contact.label})<br>
+            <strong>Maschine:</strong> ${machineId}<br>
+            <strong>Gemeldet von:</strong> ${author || 'Terminal'}</p>
+            <p style="background:#fef2f2; padding:10px; border-left:4px solid #ef4444;"><em>"${note || 'Keine Beschreibung'}"</em></p>
+           </div>`
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`[Email] Alert-Mail erfolgreich an ${contact.email} gesendet.`);
+    console.log(`[Email] Erfolgreich gesendet an ${contact.email}`);
   } catch (error) {
-    console.error('[Email-Fehler] Fehler beim Senden:', error);
+    console.error('[Email-Fehler] Ausführliches Log für Render:', error);
   }
 };
 
-// === TEMPORÄRER SPEICHER ===
-let shopfloorData = {};
+// === API ENDPUNKTE (Echtes Multi-Mappen-System) ===
 
-// === API ENDPUNKTE ===
-
-app.get('/api/status', (req, res) => {
-  res.json(shopfloorData);
+// 1. Alle verfügbaren Mappen (Panels) für die Navigation abrufen
+app.get('/api/panels', (req, res) => {
+  const data = loadData();
+  const list = Object.keys(data).map(key => ({ id: key, name: data[key].name }));
+  res.json(list);
 });
 
-app.post('/api/status', (req, res) => {
-  const { machineId, criterion, status, note, author } = req.body;
+// 2. Daten einer spezifischen Mappe abrufen
+app.get('/api/panel/:id', (req, res) => {
+  const data = loadData();
+  const panel = data[req.params.id];
+  if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
+  res.json(panel);
+});
+
+// 3. Neue Mappe (Excel-Blatt) anlegen
+app.post('/api/panel', (req, res) => {
+  const { id, name } = req.body;
+  if (!id || !name) return res.status(400).json({ error: "id und name erforderlich" });
   
-  if (!machineId || !criterion || !status) {
-    return res.status(400).json({ error: "Fehlende Daten (machineId, criterion, status erforderlich)" });
+  const data = loadData();
+  if (data[id]) return res.status(400).json({ error: "ID existiert bereits" });
+
+  data[id] = { name, machines: [], criteria: [], cells: {} };
+  saveData(data);
+  res.json({ success: true, panels: data });
+});
+
+// 4. Struktur anpassen (Maschinen/Kriterien hinzufügen oder permanent löschen!)
+app.post('/api/panel/:id/structure', (req, res) => {
+  const data = loadData();
+  const panel = data[req.params.id];
+  if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
+
+  const { action, type, value } = req.body; // action: 'add'/'delete', type: 'machine'/'criterion'
+
+  if (type === 'machine') {
+    if (action === 'add' && !panel.machines.includes(value)) panel.machines.push(value);
+    if (action === 'delete') {
+      panel.machines = panel.machines.filter(m => m !== value);
+      // Optionale Bereinigung verwaister Zellen
+      Object.keys(panel.cells).forEach(k => { if (k.startsWith(`${value}-`)) delete panel.cells[k]; });
+    }
+  } else if (type === 'criterion') {
+    if (action === 'add' && !panel.criteria.includes(value)) panel.criteria.push(value);
+    if (action === 'delete') {
+      panel.criteria = panel.criteria.filter(c => c !== value);
+      Object.keys(panel.cells).forEach(k => { if (k.endsWith(`-${value}`)) delete panel.cells[k]; });
+    }
   }
 
+  data[req.params.id] = panel;
+  saveData(data);
+  res.json({ success: true, panel });
+});
+
+// 5. Ampel-Status in einer Mappe ändern
+app.post('/api/panel/:id/status', (req, res) => {
+  const data = loadData();
+  const panel = data[req.params.id];
+  if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
+
+  const { machineId, criterion, status, note, author } = req.body;
   const key = `${machineId}-${criterion}`;
+  const previousStatus = panel.cells[key] ? panel.cells[key].status : "green";
 
-  // Vorherigen Status merken, um Fehlalarme bei doppelten Klicks/reinen Notiz-Updates zu vermeiden
-  const previousStatus = shopfloorData[key] ? shopfloorData[key].status : "green";
-
-  // Falls der Eintrag noch nicht existiert, neu anlegen
-  if (!shopfloorData[key]) {
-    shopfloorData[key] = { status: "green", notes: [] };
-  }
-
-  // Status aktualisieren
-  shopfloorData[key].status = status;
-
-  // Wenn eine Notiz mitgeschickt wurde
+  if (!panel.cells[key]) panel.cells[key] = { status: "green", notes: [] };
+  
+  panel.cells[key].status = status;
   if (note && note.trim() !== "") {
-    shopfloorData[key].notes.push({
+    panel.cells[key].notes.push({
       author: author || "Mitarbeiter",
       text: note,
       timestamp: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' })
     });
   }
 
-  console.log(`[Update] ${key} gesetzt auf ${status}. Notizen-Anzahl: ${shopfloorData[key].notes.length}`);
+  data[req.params.id] = panel;
+  saveData(data);
 
-  // TRIGGER: E-Mail nur abschicken, wenn der neue Status ROT ist und er vorher NICHT rot war
   if (status === 'red' && previousStatus !== 'red') {
-    // "Fire & Forget" im Hintergrund starten, damit das Frontend nicht blockiert
     sendStatusAlert(machineId, criterion, note, author);
   }
-  
-  res.json({ success: true, updatedNode: shopfloorData[key] });
+
+  res.json({ success: true, panel });
 });
 
-// Test-Route für den Browser
-app.get('/', (req, res) => {
-  res.send('<h1>FactoryAI API-Server läuft!</h1><p>Bereit für die Verbindung mit dem Frontend.</p>');
-});
+app.get('/', (req, res) => { res.send('<h1>FactoryAI Multi-Panel Engine läuft!</h1>'); });
 
-// Server starten
-app.listen(PORT, () => {
-  console.log(`Server erfolgreich gestartet auf Port ${PORT}`);
-});
+app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
