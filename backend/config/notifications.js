@@ -1,27 +1,27 @@
 // backend/config/notifications.js
 export const criterionContacts = {
   "Maschine": {
-    email: "instandhaltung@firma.com",
+    email: "dominik.alge@bruderer.com",
     label: "Technische Instandhaltung"
   },
   "AVOR": {
-    email: "avor.team@firma.com",
+    email: "dominik.alge@bruderer.com",
     label: "Arbeitsvorbereitung"
   },
   "DISPO": {
-    email: "disposition@firma.com",
+    email: "dominik.alge@bruderer.com",
     label: "Materialdisposition"
   },
   "NCP": {
-    email: "nc-programmierung@firma.com",
+    email: "dominik.alge@bruderer.com",
     label: "NC-Programmierung"
   },
   "Qualität": {
-    email: "qs-notfall@firma.com",
+    email: "dominik.alge@bruderer.com",
     label: "Qualitätssicherung"
   },
   "Material": {
-    email: "logistik@firma.com",
+    email: "dominik.alge@bruderer.com",
     label: "Logistik & Lager"
   }
 };
