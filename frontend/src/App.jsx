@@ -235,6 +235,7 @@ export default function App() {
           data={panelData.cells}
           machines={panelData.machines}
           criteria={panelData.criteria}
+          currentPanelName={panelData.name} // <--- DIESE ZEILE NEU HINZUFÜGEN
           onCellClick={handleCellClick}
           onAddMachine={handleAddMachine}
           onAddCriterion={handleAddCriterion}
