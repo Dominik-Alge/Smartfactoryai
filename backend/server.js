@@ -180,9 +180,16 @@ app.post('/api/panel/:id/status', (req, res) => {
   }
 
   res.json({ success: true, panel });
-});
-
-app.get('/', (req, res) => { res.send('<h1>FactoryAI Multi-Panel Engine läuft!</h1>'); });
+  });
+  
+  // === FRONTEND ANBINDUNG (Verbindet Server und Oberfläche) ===
+  // Teilt Express mit, wo die gebauten Frontend-Dateien liegen
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  
+  // Liefert die Hauptseite der App aus, wenn man die Domain aufruft
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+  });
 
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
