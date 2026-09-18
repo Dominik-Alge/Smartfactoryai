@@ -56,12 +56,13 @@ function saveData(data) {
 
 // === CONFIG: E-Mail-Verteiler für Kriterien ===
 const criterionContacts = {
-  "Maschine": { email: "instandhaltung@firma.com", label: "Technische Instandhaltung" },
-  "AVOR": { email: "avor.team@firma.com", label: "Arbeitsvorbereitung" },
-  "DISPO": { email: "disposition@firma.com", label: "Materialdisposition" },
-  "NCP": { email: "nc-programmierung@firma.com", label: "NC-Programmierung" },
-  "Qualität": { email: "qs-notfall@firma.com", label: "Qualitätssicherung" },
-  "Material": { email: "logistik@firma.com", label: "Logistik & Lager" }
+  "Maschine": { email: "dominik.alge@bruderer.com", label: "Technische Instandhaltung" },
+  "AVOR": { email: "dominik.alge@bruderer.com", label: "Arbeitsvorbereitung" },
+  "DISPO": { email: "dominik.alge@bruderer.com", label: "Materialdisposition" },
+  "NCP": { email: "dominik.alge@bruderer.com", label: "NC-Programmierung" },
+  "Qualität": { email: "dominik.alge@bruderer.com", label: "Qualitätssicherung" },
+  "Material": { email: "dominik.alge@bruderer.com", label: "Logistik & Lager" },
+  "Werkzeug": { email: "dominik.alge@bruderer.com", label: "Werkzeugbau" } // <-- Werkzeug für "Fräsen" ergänzt
 };
 
 // === MAIL-TRANSPORTER MIT DEBUGGING ===
