@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Matrix from './components/Matrix';
 import Modal from './components/Modal';
+import SupervisorView from './components/SupervisorView'; // <-- Direkt unter den anderen Importen platzieren
+
 
 // Erzwingt das echte Tailwind-Design direkt im Browser
 if (!document.getElementById('tailwind-cdn')) {
@@ -230,12 +232,19 @@ export default function App() {
 
       {loading ? (
         <div className="text-center py-12 text-slate-500 font-medium">Lade Panel-Daten...</div>
+      ) : activePanelId === 'insel_ds' ? (
+        /* Wenn die Vorgesetzten-Sicht aktiv ist: Zeige NUR die roten Schadenskarten */
+        <SupervisorView 
+          data={panelData.cells}
+          onCellClick={handleCellClick}
+        />
       ) : (
+        /* In allen anderen Fällen (Drehen, Fräsen): Deine originale, stabile Tabelle */
         <Matrix 
           data={panelData.cells}
           machines={panelData.machines}
           criteria={panelData.criteria}
-          currentPanelName={panelData.name} // <--- DIESE ZEILE NEU HINZUFÜGEN
+          currentPanelName={panelData.name}
           onCellClick={handleCellClick}
           onAddMachine={handleAddMachine}
           onAddCriterion={handleAddCriterion}
@@ -243,6 +252,7 @@ export default function App() {
           onDeleteCriterion={handleDeleteCriterion}
         />
       )}
+
 
       {/* Modal Popup für Status-Wechsel */}
       {modalConfig.isOpen && (
