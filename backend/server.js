@@ -1,4 +1,4 @@
-// backend/server.js
+// backend/server.js - TEIL 1
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -7,8 +7,6 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const app = express();
-
-// PORT-Zuweisung absolut sauber priorisieren
 const PORT = process.env.PORT || 10000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,10 +15,8 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// Permanenter Speicherpfad im beschreibbaren Linux-/tmp-Verzeichnis für Render
-const STORAGE_FILE = process.env.RENDER 
-  ? '/tmp/shopfloor_storage.json' 
-  : path.join(__dirname, 'shopfloor_storage.json');
+// REPARATUR: Erzeugt einen sicheren Pfad im Anwendungsordner für Render
+const STORAGE_FILE = path.join(__dirname, 'shopfloor_storage.json');
 
 const defaultData = {
   "drehen": {
@@ -28,18 +24,20 @@ const defaultData = {
     machines: ["12771", "12772", "12773", "12774", "12766"],
     criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
     cells: {},
-    historyLog: [] // NEU: Verlaufsspeicher für gelöschte Alarme
+    historyLog: []
   },
-  "fraesen": {
+  "schleifen": {
     name: "Gruppe Schleifen",
-    machines: ["13404", "13402", "13602", "13507", "13509", "13510", "13750"],
-    criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
+    machines: ["20101", "20102"],
+    criteria: ["Maschine", "AVOR", "Werkzeug", "Qualität"],
     cells: {},
-    historyLog: [] // NEU: Verlaufsspeicher für gelöschte Alarme
+    historyLog: []
   }
 };
 
-// Hilfsfunktion: Bereinigt die Historie um Einträge, die älter als 24 Stunden sind
+// Globaler RAM-Cache, falls Festplattenschreiben auf Render fehlschlägt
+let memoryCache = null;
+
 function cleanOldHistory(panel) {
   if (!panel.historyLog) {
     panel.historyLog = [];
@@ -50,31 +48,30 @@ function cleanOldHistory(panel) {
 }
 
 function loadData() {
+  if (memoryCache) return memoryCache;
   try {
     if (!fs.existsSync(STORAGE_FILE)) {
       fs.writeFileSync(STORAGE_FILE, JSON.stringify(defaultData, null, 2));
+      memoryCache = defaultData;
       return defaultData;
     }
     const raw = fs.readFileSync(STORAGE_FILE, 'utf8');
     const data = JSON.parse(raw);
-    
-    // Historie beim Laden für alle Panels bereinigen
-    Object.keys(data).forEach(key => {
-      cleanOldHistory(data[key]);
-    });
-    
+    Object.keys(data).forEach(key => cleanOldHistory(data[key]));
+    memoryCache = data;
     return data;
   } catch (err) {
-    console.error("Fehler beim Laden der Speicherdatei:", err);
-    return defaultData;
+    console.error("Fehler beim Laden der Speicherdatei, nutze RAM-Fallback:", err);
+    return memoryCache || defaultData;
   }
 }
 
 function saveData(data) {
+  memoryCache = data; // Immer zuerst im Arbeitsspeicher sichern
   try {
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error("Fehler beim Speichern der Datei:", err);
+    console.error("Fehler beim physischen Schreiben der Datei:", err);
   }
 }
 
@@ -99,6 +96,8 @@ const transporter = nodemailer.createTransport({
   debug: true,
   logger: true
 });
+
+// backend/server.js - TEIL 2
 
 const sendStatusAlert = async (machineId, criterion, note, author) => {
   const contact = criterionContacts[criterion];
@@ -162,7 +161,6 @@ app.get('/api/panel/:id', (req, res) => {
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
   
-  // Sicherstellen, dass das historyLog-Feld existiert beim Ausliefern
   if (!panel.historyLog) panel.historyLog = [];
   res.json(panel);
 });
@@ -179,7 +177,6 @@ app.post('/api/panel', (req, res) => {
   res.json({ success: true, panels: data });
 });
 
-// MODIFIZIERT: Sichert ungelöste Probleme in historyLog vor dem Löschen
 app.post('/api/panel/:id/structure', (req, res) => {
   const data = loadData();
   const panel = data[req.params.id];
@@ -192,7 +189,6 @@ app.post('/api/panel/:id/structure', (req, res) => {
   if (type === 'machine') {
     if (action === 'add' && !panel.machines.includes(value)) panel.machines.push(value);
     if (action === 'delete') {
-      // Vor dem Löschen prüfen, ob ein Kriterium für diese Maschine rot war
       panel.criteria.forEach(crit => {
         const cellKey = `${value}-${crit}`;
         if (panel.cells[cellKey]?.status === 'red') {
@@ -212,7 +208,6 @@ app.post('/api/panel/:id/structure', (req, res) => {
   } else if (type === 'criterion') {
     if (action === 'add' && !panel.criteria.includes(value)) panel.criteria.push(value);
     if (action === 'delete') {
-      // Vor dem Löschen prüfen, ob eine Maschine bei diesem Kriterium rot war
       panel.machines.forEach(m => {
         const cellKey = `${m}-${value}`;
         if (panel.cells[cellKey]?.status === 'red') {
