@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 
 const app = express();
 
-// REPARATUR 1: Port-Zuweisung absolut sauber priorisieren
+// PORT-Zuweisung absolut sauber priorisieren
 const PORT = process.env.PORT || 10000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// REPARATUR 2: Permanenter Speicherpfad im beschreibbaren Linux-/tmp-Verzeichnis für Render
+// Permanenter Speicherpfad im beschreibbaren Linux-/tmp-Verzeichnis für Render
 const STORAGE_FILE = process.env.RENDER 
   ? '/tmp/shopfloor_storage.json' 
   : path.join(__dirname, 'shopfloor_storage.json');
@@ -27,15 +27,27 @@ const defaultData = {
     name: "Gruppe Drehen",
     machines: ["12771", "12772", "12773", "12774", "12766"],
     criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
-    cells: {}
+    cells: {},
+    historyLog: [] // NEU: Verlaufsspeicher für gelöschte Alarme
   },
   "fraesen": {
-    name: "Gruppe Fräsen",
-    machines: ["20101", "20102"],
-    criteria: ["Maschine", "AVOR", "Werkzeug", "Qualität"],
-    cells: {}
+    name: "Gruppe Schleifen",
+    machines: ["13404", "13402", "13602", "13507", "13509", "13510", "13750"],
+    criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
+    cells: {},
+    historyLog: [] // NEU: Verlaufsspeicher für gelöschte Alarme
   }
 };
+
+// Hilfsfunktion: Bereinigt die Historie um Einträge, die älter als 24 Stunden sind
+function cleanOldHistory(panel) {
+  if (!panel.historyLog) {
+    panel.historyLog = [];
+    return;
+  }
+  const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+  panel.historyLog = panel.historyLog.filter(log => log.timestampMs > twentyFourHoursAgo);
+}
 
 function loadData() {
   try {
@@ -44,7 +56,14 @@ function loadData() {
       return defaultData;
     }
     const raw = fs.readFileSync(STORAGE_FILE, 'utf8');
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    
+    // Historie beim Laden für alle Panels bereinigen
+    Object.keys(data).forEach(key => {
+      cleanOldHistory(data[key]);
+    });
+    
+    return data;
   } catch (err) {
     console.error("Fehler beim Laden der Speicherdatei:", err);
     return defaultData;
@@ -108,23 +127,18 @@ const sendStatusAlert = async (machineId, criterion, note, author) => {
 
 // === API ENDPUNKTE ===
 
-// REPARATUR 3: Die Vorgesetzten-Sicht wird hier bombensicher an die Registerkarten übergeben
 app.get('/api/panels', (req, res) => {
   const data = loadData();
   const list = Object.keys(data).map(key => ({ id: key, name: data[key].name }));
-  
-  // Setzt die Vorgesetzten-Sicht als allerersten Tab fest
   list.unshift({ id: 'insel_ds', name: '👁️ Insel-Sicht DS (Vorgesetzte)' });
   res.json(list);
 });
 
-// REPARATUR 4: Aggregiert alle roten Störungen live aus allen Mappen
 app.get('/api/panel/:id', (req, res) => {
   const data = loadData();
 
   if (req.params.id === 'insel_ds') {
     const aggregatedCells = {};
-    
     Object.keys(data).forEach((panelKey) => {
       const panel = data[panelKey];
       if (panel && panel.cells) {
@@ -140,12 +154,16 @@ app.get('/api/panel/:id', (req, res) => {
       name: 'Insel-Sicht DS',
       machines: [],
       criteria: [],
-      cells: aggregatedCells
+      cells: aggregatedCells,
+      historyLog: []
     });
   }
 
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
+  
+  // Sicherstellen, dass das historyLog-Feld existiert beim Ausliefern
+  if (!panel.historyLog) panel.historyLog = [];
   res.json(panel);
 });
 
@@ -156,27 +174,58 @@ app.post('/api/panel', (req, res) => {
   const data = loadData();
   if (data[id]) return res.status(400).json({ error: "ID existiert bereits" });
 
-  data[id] = { name, machines: [], criteria: [], cells: {} };
+  data[id] = { name, machines: [], criteria: [], cells: {}, historyLog: [] };
   saveData(data);
   res.json({ success: true, panels: data });
 });
 
+// MODIFIZIERT: Sichert ungelöste Probleme in historyLog vor dem Löschen
 app.post('/api/panel/:id/structure', (req, res) => {
   const data = loadData();
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
+  if (!panel.historyLog) panel.historyLog = [];
 
   const { action, type, value } = req.body;
+  const timeString = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' });
 
   if (type === 'machine') {
     if (action === 'add' && !panel.machines.includes(value)) panel.machines.push(value);
     if (action === 'delete') {
+      // Vor dem Löschen prüfen, ob ein Kriterium für diese Maschine rot war
+      panel.criteria.forEach(crit => {
+        const cellKey = `${value}-${crit}`;
+        if (panel.cells[cellKey]?.status === 'red') {
+          panel.historyLog.push({
+            type: 'Maschine',
+            name: value,
+            time: timeString,
+            timestampMs: Date.now(),
+            note: `Mit ungelöstem Problem im Kriterium "${crit}" entfernt`
+          });
+        }
+      });
+
       panel.machines = panel.machines.filter(m => m !== value);
       Object.keys(panel.cells).forEach(k => { if (k.startsWith(`${value}-`)) delete panel.cells[k]; });
     }
   } else if (type === 'criterion') {
     if (action === 'add' && !panel.criteria.includes(value)) panel.criteria.push(value);
     if (action === 'delete') {
+      // Vor dem Löschen prüfen, ob eine Maschine bei diesem Kriterium rot war
+      panel.machines.forEach(m => {
+        const cellKey = `${m}-${value}`;
+        if (panel.cells[cellKey]?.status === 'red') {
+          panel.historyLog.push({
+            type: 'Kategorie',
+            name: value,
+            time: timeString,
+            timestampMs: Date.now(),
+            note: `Mit ungelöstem Problem auf Maschine "${m}" entfernt`
+          });
+        }
+      });
+
       panel.criteria = panel.criteria.filter(c => c !== value);
       Object.keys(panel.cells).forEach(k => { if (k.endsWith(`-${value}`)) delete panel.cells[k]; });
     }
@@ -230,7 +279,6 @@ app.get('*', (req, res) => {
   }
 });
 
-// Server auf dem von Render zugewiesenen Port starten
 app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
 
 
