@@ -28,8 +28,8 @@ const defaultData = {
   },
   "schleifen": {
     name: "Gruppe Schleifen",
-    machines: ["20101", "20102"],
-    criteria: ["Maschine", "AVOR", "Werkzeug", "Qualität"],
+    machines: ["13402", "13404", "13503", "13507", "13509", "13510", "13602", "13704", "13750"],
+    criteria: ["Maschine", "AVOR","DISPO", "Ausbildung","NCP", "Qualität", "Material"],
     cells: {},
     historyLog: []
   }
