@@ -4,11 +4,11 @@ import Modal from './components/Modal';
 import SupervisorView from './components/SupervisorView'; // <-- Direkt unter den anderen Importen platzieren
 
 
-// Erzwingt das echte Tailwind-Design direkt im Browser
+// Ersetze das alte Skript hiermit (Nutzt das offizielle Play CDN):
 if (!document.getElementById('tailwind-cdn')) {
   const script = document.createElement('script');
   script.id = 'tailwind-cdn';
-  script.src = 'https://tailwindcss.com';
+  script.src = 'https://cdn.tailwindcss.com'; // <-- "cdn." wurde hier hinzugefügt!
   document.head.appendChild(script);
 }
 
