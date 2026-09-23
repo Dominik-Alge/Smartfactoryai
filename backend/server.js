@@ -22,7 +22,7 @@ const defaultData = {
   "drehen": {
     name: "Gruppe Drehen",
     machines: ["12771", "12772", "12773", "12774", "12766"],
-    criteria: ["Maschine", "Qualität", "Material", "AVOR", "DISPO", "Personal", "Systemfehler", "Werkzeug", "Neuteil 0%", "Programme", "ECI-Shopfloor"],
+    criteria: ["Maschine", "Qualität", "Material", "AVOR", "DISPO", "Personal", "Systemfehler", "Werkzeug", "Neuteil 0%", "Programme", "Messen (anmelden)", "ECI-Shopfloor"],
     cells: {},
     historyLog: []
   },
