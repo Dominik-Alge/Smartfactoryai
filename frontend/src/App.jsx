@@ -263,6 +263,7 @@ export default function App() {
           currentData={panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`] || { status: 'green', notes: [] }}
           onClose={() => setModalConfig({ isOpen: false, machineId: '', criterion: '' })}
           onSave={handleSaveStatus}
+          allCriteria={activeGroupData?.criteria || []} 
         />
       )}
     </div>
