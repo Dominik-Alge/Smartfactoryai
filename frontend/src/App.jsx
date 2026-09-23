@@ -328,8 +328,8 @@ export default function App() {
           isOpen={modalConfig.isOpen}
           machineId={modalConfig.machineId}
           criterion={modalConfig.criterion}
-          allCriteria={Object.keys(reasonOptions)} // Hinzugefügt: ["Maschine", "Qualität", "AVOR", ...]
-          reasons={reasonOptions}                  // Hinzugefügt: Deine Struktur mit den Untergründen
+          allCriteria={Object.keys(reasonOptions)} 
+          reasons={reasonOptions}                  
           currentData={
             panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`]
             || { status: 'green', notes: [] }
@@ -342,9 +342,10 @@ export default function App() {
             })
           }
           onSave={handleSaveStatus}
-          categories={shopfloorCategories}
+          // GELÖSCHT: categories={shopfloorCategories} wurde entfernt, da nicht definiert
         />
       )}
+
     </div>
   );
 }
