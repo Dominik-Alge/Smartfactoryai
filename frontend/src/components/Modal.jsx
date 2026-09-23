@@ -4,191 +4,145 @@ export default function Modal({
   isOpen,
   onClose,
   machineId,
-  criterion,         // Das aktuell vorausgewählte Kriterium (z.B. "AVOR")
-  allCriteria = [],    // Erhält von App.jsx: Object.keys(reasonOptions)
-  reasons = {},        // Erhält von App.jsx: deine 'reasonOptions' Struktur
+  criterion,         // Z.B. "AVOR" (Vorauswahl aus der Matrix)
+  allCriteria = [],  // Object.keys(reasonOptions) -> ["Maschine", "AVOR", ...]
+  reasons = {},      // Die gesamte reasonOptions-Struktur
   currentData,
   onSave
 }) {
   const [author, setAuthor] = useState('');
   const [note, setNote] = useState('');
   
-  // States für die dynamische Auswahl im Formular
-  const [selectedCriterion, setSelectedCriterion] = useState(criterion || '');
+  // Neue States für die Dropdowns
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedReason, setSelectedReason] = useState('');
 
-  // Setzt die Formularfelder zurück, wenn das Modal geöffnet wird
+  // Sobald das Modal geöffnet wird oder das Kriterium sich ändert,
+  // setzen wir die Standardwerte
   useEffect(() => {
     if (isOpen) {
-      setNote('');
-      setAuthor('');
-      setSelectedCriterion(criterion || '');
-      setSelectedReason('');
+      // Setze die Kategorie auf das geklickte Kriterium (z.B. "AVOR")
+      setSelectedCategory(criterion || '');
+      setSelectedReason(''); // Zuerst leer, damit der User wählen muss
+      
+      // Bestehende Daten laden (falls vorhanden)
+      setAuthor(currentData?.author || '');
+      setNote(currentData?.note || '');
     }
-  }, [isOpen, criterion]);
+  }, [isOpen, criterion, currentData]);
 
-  // Sobald der Benutzer das Kriterium wechselt, setzen wir den ausgewählten Grund zurück
-  useEffect(() => {
+  // Wenn der User die Hauptkategorie im Modal manuell ändert,
+  // setzen wir den ausgewählten Untergrund zurück
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
     setSelectedReason('');
-  }, [selectedCriterion]);
+  };
+
+  const handleSave = () => {
+    // Hier übergeben wir die strukturierten Daten an deine App.jsx
+    onSave({
+      author,
+      category: selectedCategory,
+      reason: selectedReason,
+      note: note, // Das optionale Notizfeld bleibt für Details bestehen
+      timestamp: new Date().toISOString()
+    });
+    onClose();
+  };
 
   if (!isOpen) return null;
 
-  const isCurrentRed = currentData?.status === 'red';
-
-  // Holt die passenden Untergründe basierend auf dem gewählten Kriterium
-  const availableReasons = reasons[selectedCriterion] || [];
-
-  const handleProcessSubmit = (e, targetStatus) => {
-    if (e) e.preventDefault();
-    if (!note.trim()) return;
-    
-    // Kombiniert den ausgewählten Grund und den Freitext für die finale Notiz
-    const combinedNote = selectedReason 
-      ? `[${selectedReason}] ${note.trim()}`
-      : note.trim();
-
-    onSave(machineId, selectedCriterion, targetStatus, combinedNote, author.trim() || 'Mitarbeiter');
-  };
+  // Hol dir die passenden Untergründe basierend auf der ausgewählten Kategorie
+  const availableReasons = reasons[selectedCategory] || [];
 
   return (
-    <div style={{
-      position: 'fixed', inset: '0', backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000,
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <div style={{
-        backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '400px',
-        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)', overflow: 'hidden', border: '1px solid #e2e8f0'
-      }}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden">
         
         {/* Header */}
-        <div style={{
-          padding: '16px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          background: isCurrentRed ? 'linear-gradient(to right, #475569, #334155)' : 'linear-gradient(to right, #dc2626, #b91c1c)'
-        }}>
-          <div>
-            <h3 style={{ margin: '0', fontSize: '16px', fontWeight: '700' }}>
-              {isCurrentRed ? '⚠️ Problem bearbeiten / lösen' : '🚨 Neue Störung melden'}
-            </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-              Auftrag: <strong>{machineId}</strong> • Kriterium: <strong>{selectedCriterion || 'Bitte wählen'}</strong>
-            </p>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer', lineHeight: '1' }}>&times;</button>
+        <div className="bg-gray-100 px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800">
+            Statusmeldung erheben ({machineId})
+          </h3>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '16px' }}>
+        <div className="p-6 space-y-4">
           
-          {/* SICHERSHELLUNG: Verlaufshistorie stürzt nicht ab, wenn currentData oder notes leer ist */}
-          {currentData && currentData.notes && Array.isArray(currentData.notes) && currentData.notes.length > 0 && (
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', tracking: '1px' }}>Bisheriger Verlauf:</h4>
-              <div style={{ maxHeight: '120px', overflowY: 'auto', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
-                {[...currentData.notes].reverse().map((n, idx) => (
-                  <div key={idx} style={{ backgroundColor: '#f8fafc', borderLeft: '4px solid #f59e0b', padding: '8px', borderRadius: '0 6px 6px 0', marginBottom: '6px', fontSize: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '10px', marginBottom: '4px' }}>
-                      <strong>{n.author}</strong><span>{n.timestamp}</span>
-                    </div>
-                    <p style={{ margin: '0', color: '#334155', lineHeight: '1.4' }}>{n.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Autor / Mitarbeiter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mitarbeiter / Kürzel</label>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="z.B. MÜA"
+            />
+          </div>
 
-          {/* Formular */}
-          <form onSubmit={(e) => handleProcessSubmit(e, 'red')} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            
-            {/* 1. Kriterium Auswahl */}
-            {allCriteria.length > 0 && (
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Kriterium</label>
-                <select
-                  value={selectedCriterion}
-                  onChange={(e) => setSelectedCriterion(e.target.value)}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                  required
-                >
-                  <option value="">-- Kriterium wählen --</option>
-                  {allCriteria.map((crit) => (
-                    <option key={crit} value={crit}>{crit}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* Dropdown 1: Hauptkategorie (Vorausgewählt durch Klick) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bereich / Kriterium</label>
+            <select
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+            >
+              <option value="">-- Bitte wählen --</option>
+              {allCriteria.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* 2. Dynamischer Grund (erscheint nur, wenn Kriterium gewählt wurde) */}
-            {availableReasons.length > 0 && (
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Grund</label>
-                <select
-                  value={selectedReason}
-                  onChange={(e) => setSelectedReason(e.target.value)}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                  required
-                >
-                  <option value="">-- Bitte Grund auswählen --</option>
-                  {availableReasons.map((res) => (
-                    <option key={res} value={res}>{res}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* Dropdown 2: Dynamische Begründung */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Spezifischer Grund</label>
+            <select
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+              value={selectedReason}
+              onChange={(e) => setSelectedReason(e.target.value)}
+              disabled={!selectedCategory || availableReasons.length === 0}
+            >
+              <option value="">-- Grund auswählen --</option>
+              {availableReasons.map((reason) => (
+                <option key={reason} value={reason}>{reason}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* Mitarbeiter-Kürzel */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Dein Name / Kürzel</label>
-              <input
-                type="text"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                placeholder="z.B. M. Muster"
-                style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-                required
-              />
-            </div>
-            
-            {/* Freitext-Notiz */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>
-                {isCurrentRed ? 'Neues Update / Abschlussgrund' : 'Ergänzende Notiz'}
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={isCurrentRed ? "z.B. Techniker vor Ort..." : "z.B. Nähere Details zur Störung..."}
-                rows="3"
-                style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', resize: 'none', boxSizing: 'border-box' }}
-                required
-              />
-            </div>
-
-            {/* Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px', borderTop: '1px solid #edf2f7', paddingTop: '12px' }}>
-              <button type="button" onClick={onClose} style={{ padding: '8px 14px', border: '1px solid #cbd5e1', backgroundColor: '#fff', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
-                Abbrechen
-              </button>
-
-              {isCurrentRed ? (
-                <>
-                  <button type="submit" style={{ padding: '8px 14px', backgroundColor: '#475569', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                    Update hinzufügen
-                  </button>
-                  <button type="button" onClick={(e) => handleProcessSubmit(e, 'green')} style={{ padding: '8px 14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                    Gelöst (➔ GRÜN)
-                  </button>
-                </>
-              ) : (
-                <button type="submit" style={{ padding: '8px 14px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                  Als ROT speichern
-                </button>
-              )}
-            </div>
-          </form>
+          {/* Optionales Notizfeld (für Details wie Ticketnummern etc.) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Zusätzliche Notiz (optional)</label>
+            <textarea
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows="3"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Details zum Stillstand..."
+            />
+          </div>
 
         </div>
+
+        {/* Footer Buttons */}
+        <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Abbrechen
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!selectedCategory || !selectedReason} // Speichern sperren, bis Grund gewählt ist
+            className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Speichern
+          </button>
+        </div>
+
       </div>
     </div>
   );
