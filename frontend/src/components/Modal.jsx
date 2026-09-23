@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 
 // WICHTIG: 'allCriteria' wurde hier als neue Property hinzugefügt
-export default function Modal({ isOpen, onClose, machineId, criterion, allCriteria = [], currentData, onSave }) {
-  const [note, setNote] = useState('');
-  const [author, setAuthor] = useState('');
-  // Lokaler State für das im Dropdown ausgewählte Kriterium
-  const [selectedCriterion, setSelectedCriterion] = useState(criterion || '');
-
-  useEffect(() => {
-    if (isOpen) { 
-      setNote(''); 
-      setAuthor(''); 
-      // Wenn das Modal geöffnet wird, setzen wir das vom übergeordneten Element übergebene Kriterium
-      setSelectedCriterion(criterion || (allCriteria.length > 0 ? allCriteria[0] : ''));
+export de*ault function Modal({
+  isOpen,
+  *nClose,
+  machineId,
+  criterion,
+* reasons = {},
+  currentData,
+  on*
+  const [author, setAuthor] = useState
+  const [selectedReason, setSelectedReason] = useState("");
+  const [note, setNote] = useState("");
+  
+  useEffect*() => {
+    if (isOpen) {
+      setNot*('');
+      setAuthor('');
+      setSe*ectedReason('');
     }
-  }, [isOpen, criterion, allCriteria]);
+  }, [isOpen]);*
 
   if (!isOpen) return null;
 
@@ -78,22 +83,7 @@ export default function Modal({ isOpen, onClose, machineId, criterion, allCriter
           {/* Formular */}
           <form onSubmit={(e) => handleProcessSubmit(e, isCurrentRed ? 'red' : 'red')} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             
-            {/* NEU: Dropdown für Kategorien / Kriterien */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Kategorie wählen</label>
-              <select
-                value={selectedCriterion}
-                onChange={(e) => setSelectedCriterion(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#fff', cursor: 'pointer' }}
-                required
-              >
-                {allCriteria.map((crit) => (
-                  <option key={crit} value={crit}>
-                    {crit}
-                  </option>
-                ))}
-              </select>
-            </div>
+            
 
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Dein Name / Kürzel</label>
