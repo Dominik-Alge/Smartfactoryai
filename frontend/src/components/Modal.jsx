@@ -1,25 +1,30 @@
 import React, { useState, useEffect } from 'react';
 
-// WICHTIG: 'allCriteria' wurde hier als neue Property hinzugefügt
-export de*ault function Modal({
+export default function Modal({
   isOpen,
-  *nClose,
+  onClose,
   machineId,
-  criterion,
-* reasons = {},
+  criterion,      // Das aktuelle Kriterium
+  allCriteria = [], // Falls du eine Liste aller Kriterien zur Auswahl brauchst
+  reasons = {},
   currentData,
-  on*
-  const [author, setAuthor] = useState
-  const [selectedReason, setSelectedReason] = useState("");
-  const [note, setNote] = useState("");
+  onSave
+}) {
+  const [author, setAuthor] = useState('');
+  const [selectedReason, setSelectedReason] = useState('');
+  const [note, setNote] = useState('');
   
-  useEffect*() => {
+  // State für das ausgewählte Kriterium (damit 'selectedCriterion' existiert)
+  const [selectedCriterion, setSelectedCriterion] = useState(criterion || '');
+  
+  useEffect(() => {
     if (isOpen) {
-      setNot*('');
+      setNote('');
       setAuthor('');
-      setSe*ectedReason('');
+      setSelectedReason('');
+      setSelectedCriterion(criterion || ''); // Setzt das Kriterium beim Öffnen zurück
     }
-  }, [isOpen]);*
+  }, [isOpen, criterion]);
 
   if (!isOpen) return null;
 
@@ -29,7 +34,7 @@ export de*ault function Modal({
     if (e) e.preventDefault();
     if (!note.trim()) return;
     
-    // WICHTIG: Hier übergeben wir nun 'selectedCriterion' statt dem starren 'criterion'
+    // Übergibt nun das dynamisch gewählte Kriterium
     onSave(machineId, selectedCriterion, targetStatus, note.trim(), author.trim() || 'Mitarbeiter');
   };
 
@@ -81,9 +86,23 @@ export de*ault function Modal({
           )}
 
           {/* Formular */}
-          <form onSubmit={(e) => handleProcessSubmit(e, isCurrentRed ? 'red' : 'red')} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <form onSubmit={(e) => handleProcessSubmit(e, 'red')} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             
-            
+            {/* HINGEFÜGT: Falls du 'allCriteria' nutzen willst, um das Kriterium im Modal zu ändern */}
+            {allCriteria.length > 0 && (
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Kriterium ändern</label>
+                <select
+                  value={selectedCriterion}
+                  onChange={(e) => setSelectedCriterion(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                >
+                  {allCriteria.map((crit) => (
+                    <option key={crit} value={crit}>{crit}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Dein Name / Kürzel</label>
