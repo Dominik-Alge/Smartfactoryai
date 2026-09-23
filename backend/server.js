@@ -21,15 +21,15 @@ const STORAGE_FILE = path.join(__dirname, 'shopfloor_storage.json');
 const defaultData = {
   "drehen": {
     name: "Gruppe Drehen",
-    machines: ["12771", "12772", "12773", "12774", "12766"],
-    criteria: ["Maschine", "Qualität", "Material", "AVOR", "DISPO", "Personal", "Systemfehler", "Werkzeug", "Neuteil 0%", "Programme", "Messen (anmelden)", "ECI-Shopfloor"],
+    machines: ["12766", "12768", "12769", "12774"],
+    criteria: ["Maschine", "Qualität", "Material", "AVOR", "Personal", "Systemfehler/Shopfloor", "Werkzeug", "Neuteil 0%", "Programme", "Messen (anmelden)", "Vorrichtung", "Messmittel"],
     cells: {},
     historyLog: []
   },
   "schleifen": {
     name: "Gruppe Schleifen",
     machines: ["13402", "13404", "13503", "13507", "13509", "13510", "13602", "13704", "13750"],
-    criteria: ["Maschine", "Qualität", "Material", "AVOR", "DISPO", "Personal", "Systemfehler", "Messmittel", "Messen (anmelden)", "Vorrichtung"],
+    criteria: ["Maschine", "Qualität", "Material", "AVOR", "DISPO", "Personal", "Messmittel", "Messen (anmelden)", "Vorrichtung"],
     cells: {},
     historyLog: []
   }
