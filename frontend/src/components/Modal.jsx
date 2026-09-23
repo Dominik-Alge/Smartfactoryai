@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 
-export default function Modal({ isOpen, onClose, machineId, criterion, currentData, onSave }) {
+// WICHTIG: 'allCriteria' wurde hier als neue Property hinzugefügt
+export default function Modal({ isOpen, onClose, machineId, criterion, allCriteria = [], currentData, onSave }) {
   const [note, setNote] = useState('');
   const [author, setAuthor] = useState('');
+  // Lokaler State für das im Dropdown ausgewählte Kriterium
+  const [selectedCriterion, setSelectedCriterion] = useState(criterion || '');
 
   useEffect(() => {
-    if (isOpen) { setNote(''); setAuthor(''); }
-  }, [isOpen]);
+    if (isOpen) { 
+      setNote(''); 
+      setAuthor(''); 
+      // Wenn das Modal geöffnet wird, setzen wir das vom übergeordneten Element übergebene Kriterium
+      setSelectedCriterion(criterion || (allCriteria.length > 0 ? allCriteria[0] : ''));
+    }
+  }, [isOpen, criterion, allCriteria]);
 
   if (!isOpen) return null;
 
@@ -15,7 +23,9 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
   const handleProcessSubmit = (e, targetStatus) => {
     if (e) e.preventDefault();
     if (!note.trim()) return;
-    onSave(machineId, criterion, targetStatus, note.trim(), author.trim() || 'Mitarbeiter');
+    
+    // WICHTIG: Hier übergeben wir nun 'selectedCriterion' statt dem starren 'criterion'
+    onSave(machineId, selectedCriterion, targetStatus, note.trim(), author.trim() || 'Mitarbeiter');
   };
 
   return (
@@ -39,7 +49,7 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
               {isCurrentRed ? '⚠️ Problem bearbeiten / lösen' : '🚨 Neue Störung melden'}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-              Auftrag: <strong>{machineId}</strong> • Kriterium: <strong>{criterion}</strong>
+              Auftrag: <strong>{machineId}</strong> • Kriterium: <strong>{selectedCriterion}</strong>
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer', lineHeight: '1' }}>&times;</button>
@@ -67,6 +77,24 @@ export default function Modal({ isOpen, onClose, machineId, criterion, currentDa
 
           {/* Formular */}
           <form onSubmit={(e) => handleProcessSubmit(e, isCurrentRed ? 'red' : 'red')} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            
+            {/* NEU: Dropdown für Kategorien / Kriterien */}
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Kategorie wählen</label>
+              <select
+                value={selectedCriterion}
+                onChange={(e) => setSelectedCriterion(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#fff', cursor: 'pointer' }}
+                required
+              >
+                {allCriteria.map((crit) => (
+                  <option key={crit} value={crit}>
+                    {crit}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Dein Name / Kürzel</label>
               <input
