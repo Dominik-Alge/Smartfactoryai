@@ -4,21 +4,20 @@ export default function Modal({
   isOpen,
   onClose,
   machineId,
-  criterion,      // Das aktuelle Kriterium
-  allCriteria = [], // Falls du eine Liste aller Kriterien zur Auswahl brauchst
-  reasons = {},
+  criterion,         // Das aktuell vorausgewählte Kriterium (z.B. "AVOR")
+  allCriteria = [],    // Erhält von App.jsx: Object.keys(reasonOptions)
+  reasons = {},        // Erhält von App.jsx: deine 'reasonOptions' Struktur
   currentData,
   onSave
 }) {
   const [author, setAuthor] = useState('');
-  const [selectedReason, setSelectedReason] = useState('');
   const [note, setNote] = useState('');
   
-  // States für die dynamische Auswahl
+  // States für die dynamische Auswahl im Formular
   const [selectedCriterion, setSelectedCriterion] = useState(criterion || '');
   const [selectedReason, setSelectedReason] = useState('');
 
-  // Setzt das Modal zurück, wenn es geöffnet wird
+  // Setzt die Formularfelder zurück, wenn das Modal geöffnet wird
   useEffect(() => {
     if (isOpen) {
       setNote('');
@@ -27,7 +26,8 @@ export default function Modal({
       setSelectedReason('');
     }
   }, [isOpen, criterion]);
-  // Sobald sich das Kriterium ändert, setzen wir den ausgewählten Grund zurück
+
+  // Sobald der Benutzer das Kriterium wechselt, setzen wir den ausgewählten Grund zurück
   useEffect(() => {
     setSelectedReason('');
   }, [selectedCriterion]);
@@ -43,7 +43,7 @@ export default function Modal({
     if (e) e.preventDefault();
     if (!note.trim()) return;
     
-    // Kombiniert Grund und Freitexthinweis für die finale Notiz
+    // Kombiniert den ausgewählten Grund und den Freitext für die finale Notiz
     const combinedNote = selectedReason 
       ? `[${selectedReason}] ${note.trim()}`
       : note.trim();
@@ -101,15 +101,16 @@ export default function Modal({
           {/* Formular */}
           <form onSubmit={(e) => handleProcessSubmit(e, 'red')} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             
-            {/* HINGEFÜGT: Falls du 'allCriteria' nutzen willst, um das Kriterium im Modal zu ändern */}
+            {/* 1. Kriterium Auswahl */}
             {allCriteria.length > 0 && (
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Kriterium ändern</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Kriterium</label>
                 <select
                   value={selectedCriterion}
                   onChange={(e) => setSelectedCriterion(e.target.value)}
                   style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
                 >
+                  <option value="">-- Kriterium wählen --</option>
                   {allCriteria.map((crit) => (
                     <option key={crit} value={crit}>{crit}</option>
                   ))}
@@ -117,6 +118,25 @@ export default function Modal({
               </div>
             )}
 
+            {/* 2. Dynamischer Grund (erscheint nur, wenn Kriterium gewählt wurde) */}
+            {availableReasons.length > 0 && (
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Grund</label>
+                <select
+                  value={selectedReason}
+                  onChange={(e) => setSelectedReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                  required
+                >
+                  <option value="">-- Bitte Grund auswählen --</option>
+                  {availableReasons.map((res) => (
+                    <option key={res} value={res}>{res}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Mitarbeiter-Kürzel */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Dein Name / Kürzel</label>
               <input
@@ -129,14 +149,15 @@ export default function Modal({
               />
             </div>
             
+            {/* Freitext-Notiz */}
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>
-                {isCurrentRed ? 'Neues Update / Abschlussgrund' : 'Was passt nicht? (Notiz)'}
+                {isCurrentRed ? 'Neues Update / Abschlussgrund' : 'Ergänzende Notiz'}
               </label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder={isCurrentRed ? "z.B. Techniker vor Ort..." : "z.B. Werkzeug verschlissen..."}
+                placeholder={isCurrentRed ? "z.B. Techniker vor Ort..." : "z.B. Nähere Details zur Störung..."}
                 rows="3"
                 style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', resize: 'none', boxSizing: 'border-box' }}
                 required
