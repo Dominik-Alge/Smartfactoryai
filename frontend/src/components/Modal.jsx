@@ -14,28 +14,41 @@ export default function Modal({
   const [selectedReason, setSelectedReason] = useState('');
   const [note, setNote] = useState('');
   
-  // State für das ausgewählte Kriterium (damit 'selectedCriterion' existiert)
+  // States für die dynamische Auswahl
   const [selectedCriterion, setSelectedCriterion] = useState(criterion || '');
-  
+  const [selectedReason, setSelectedReason] = useState('');
+
+  // Setzt das Modal zurück, wenn es geöffnet wird
   useEffect(() => {
     if (isOpen) {
       setNote('');
       setAuthor('');
+      setSelectedCriterion(criterion || '');
       setSelectedReason('');
-      setSelectedCriterion(criterion || ''); // Setzt das Kriterium beim Öffnen zurück
     }
   }, [isOpen, criterion]);
+  // Sobald sich das Kriterium ändert, setzen wir den ausgewählten Grund zurück
+  useEffect(() => {
+    setSelectedReason('');
+  }, [selectedCriterion]);
 
   if (!isOpen) return null;
 
   const isCurrentRed = currentData?.status === 'red';
 
+  // Holt die passenden Untergründe basierend auf dem gewählten Kriterium
+  const availableReasons = reasons[selectedCriterion] || [];
+
   const handleProcessSubmit = (e, targetStatus) => {
     if (e) e.preventDefault();
     if (!note.trim()) return;
     
-    // Übergibt nun das dynamisch gewählte Kriterium
-    onSave(machineId, selectedCriterion, targetStatus, note.trim(), author.trim() || 'Mitarbeiter');
+    // Kombiniert Grund und Freitexthinweis für die finale Notiz
+    const combinedNote = selectedReason 
+      ? `[${selectedReason}] ${note.trim()}`
+      : note.trim();
+
+    onSave(machineId, selectedCriterion, targetStatus, combinedNote, author.trim() || 'Mitarbeiter');
   };
 
   return (
