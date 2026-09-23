@@ -76,10 +76,10 @@ const reasonOptions = {
     "Vorrichtung nicht vorhanden"
   ],
 
-  System/Shopfloor: [
+  "System/Shopfloor": [
     "Shopfloor Fehler",
-    "Netzwerk Problem",
-  ]
+    "Netzwerk Problem"
+    ]
 };
 
 export default function App() {
