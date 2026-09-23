@@ -21,6 +21,9 @@ const reasonOptions = {
     "Störung Maschine",
     "Wartung erforderlich"
   ],
+  Material: [
+    "Material ist nicht vorhanden"
+  ],
 
   Qualität: [
     "Qualitätsmangel / Ausschuss"
