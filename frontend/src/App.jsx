@@ -16,7 +16,10 @@ const API_URL = window.location.origin;
 
 const reasonOptions = {
   Maschine: [
-    "Maschine läuft nicht"
+    "Maschine läuft nicht",
+    "Maschine steht",
+    "Störung Maschine",
+    "Wartung erforderlich"
   ],
 
   Qualität: [
