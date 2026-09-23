@@ -72,7 +72,7 @@ export default function Modal({
               {isCurrentRed ? '⚠️ Problem bearbeiten / lösen' : '🚨 Neue Störung melden'}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-              Auftrag: <strong>{machineId}</strong> • Kriterium: <strong>{selectedCriterion}</strong>
+              Auftrag: <strong>{machineId}</strong> • Kriterium: <strong>{selectedCriterion || 'Bitte wählen'}</strong>
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer', lineHeight: '1' }}>&times;</button>
@@ -81,8 +81,8 @@ export default function Modal({
         {/* Body */}
         <div style={{ padding: '16px' }}>
           
-          {/* Verlaufshistorie */}
-          {currentData?.notes && currentData.notes.length > 0 && (
+          {/* SICHERSHELLUNG: Verlaufshistorie stürzt nicht ab, wenn currentData oder notes leer ist */}
+          {currentData && currentData.notes && Array.isArray(currentData.notes) && currentData.notes.length > 0 && (
             <div style={{ marginBottom: '16px' }}>
               <h4 style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', tracking: '1px' }}>Bisheriger Verlauf:</h4>
               <div style={{ maxHeight: '120px', overflowY: 'auto', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
@@ -109,6 +109,7 @@ export default function Modal({
                   value={selectedCriterion}
                   onChange={(e) => setSelectedCriterion(e.target.value)}
                   style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                  required
                 >
                   <option value="">-- Kriterium wählen --</option>
                   {allCriteria.map((crit) => (
