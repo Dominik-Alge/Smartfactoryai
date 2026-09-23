@@ -328,6 +328,8 @@ export default function App() {
           isOpen={modalConfig.isOpen}
           machineId={modalConfig.machineId}
           criterion={modalConfig.criterion}
+          allCriteria={Object.keys(reasonOptions)} // Hinzugefügt: ["Maschine", "Qualität", "AVOR", ...]
+          reasons={reasonOptions}                  // Hinzugefügt: Deine Struktur mit den Untergründen
           currentData={
             panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`]
             || { status: 'green', notes: [] }
