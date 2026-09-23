@@ -14,6 +14,96 @@ if (!document.getElementById('tailwind-cdn')) {
 
 const API_URL = window.location.origin;
 
+const shopfloorCategories = [
+  {
+    id: "maschine",
+    name: "Maschine",
+    criteria: ["Maschine läuft nicht!"]
+  },
+  {
+    id: "qualitaet",
+    name: "Qualität",
+    criteria: ["Qualitätsmangel / Ausschuss"]
+  },
+  {
+    id: "avor",
+    name: "AVOR",
+    criteria: [
+      "Arbeitsplan falsch",
+      "Zeichnung fehlt",
+      "Werkzeugdaten fehlen",
+      "Auftrag unklar"
+    ]
+  },
+  {
+    id: "dispo",
+    name: "DISPO",
+    criteria: [
+      "Terminproblem",
+      "Priorität ändern",
+      "Expressauftrag blockiert"
+    ]
+  },
+  {
+    id: "personal",
+    name: "Personal",
+    criteria: ["Personal ungeplant / kurzfristiger Ausfall"]
+  },
+  {
+    id: "werkzeug",
+    name: "Werkzeug (Drehen)",
+    criteria: [
+      "Werkzeug nicht vorhanden",
+      "THM – Programm nicht vorhanden"
+    ]
+  },
+  {
+    id: "neuteil",
+    name: "Neuteil 0%",
+    criteria: ["Einfahren verzögert die Produktivität"]
+  },
+  {
+    id: "messmittel",
+    name: "Messmittel",
+    criteria: ["Messmittel nicht verfügbar"]
+  },
+  {
+    id: "programme",
+    name: "Programme",
+    criteria: [
+      "TopSolid-Programmierer fehlt",
+      "Vericut-Programmierung ausstehend"
+    ]
+  },
+  {
+    id: "eci",
+    name: "ECI – Shopfloor",
+    criteria: ["Systemausfall / Geht nicht"]
+  },
+  {
+    id: "messen",
+    name: "Messen (Schleifen)",
+    criteria: ["Messen nicht angemeldet"]
+  },
+  {
+    id: "vorrichtung",
+    name: "Vorrichtung (Schleifen)",
+    criteria: [
+      "Vorrichtung nicht einsatzfähig (auf 50% gesetzt)",
+      "Vorrichtung nicht vorhanden"
+    ]
+  },
+  {
+    id: "systemfehler",
+    name: "Systemfehler",
+    criteria: [
+      "IT – Fehler",
+      "Programmfehler",
+      "Werkzeugfehler"
+    ]
+  }
+];
+
 export default function App() {
   const [panels, setPanels] = useState([]); // Liste aller Excel-Mappen
   const [activePanelId, setActivePanelId] = useState('drehen'); // Aktive Mappe
@@ -256,14 +346,23 @@ export default function App() {
 
       {/* Modal Popup für Status-Wechsel */}
       {modalConfig.isOpen && (
-        <Modal 
+        <Modal
           isOpen={modalConfig.isOpen}
           machineId={modalConfig.machineId}
           criterion={modalConfig.criterion}
-          currentData={panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`] || { status: 'green', notes: [] }}
-          onClose={() => setModalConfig({ isOpen: false, machineId: '', criterion: '' })}
+          currentData={
+            panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`]
+            || { status: 'green', notes: [] }
+          }
+          onClose={() =>
+            setModalConfig({
+              isOpen: false,
+              machineId: '',
+              criterion: ''
+            })
+          }
           onSave={handleSaveStatus}
-          allCriteria={activeGroupData?.criteria || []} 
+          categories={shopfloorCategories}
         />
       )}
     </div>
