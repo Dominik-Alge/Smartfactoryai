@@ -22,14 +22,33 @@ const defaultData = {
   "drehen": {
     name: "Gruppe Drehen",
     machines: ["12771", "12772", "12773", "12774", "12766"],
-    criteria: ["Maschine", "AVOR", "DISPO", "NCP", "Qualität", "Material"],
+    criteria: ["Maschine", 
+      "Qualität", 
+      "Material", 
+      "AVOR", 
+      "DISPO", 
+      "Personal", 
+      "Systemfehler", 
+      "Werkzeug (Drehen)", 
+      "Neuteil 0% (Drehen)", 
+      "Programme", 
+      "ECI-Shopfloor"],
     cells: {},
     historyLog: []
   },
   "schleifen": {
     name: "Gruppe Schleifen",
     machines: ["13402", "13404", "13503", "13507", "13509", "13510", "13602", "13704", "13750"],
-    criteria: ["Maschine", "AVOR","DISPO", "Ausbildung","NCP", "Qualität", "Material"],
+    criteria: ["Maschine", 
+      "Qualität", 
+      "Material", 
+      "AVOR", 
+      "DISPO", 
+      "Personal", 
+      "Systemfehler", 
+      "Messmittel", 
+      "Messen (anmelden)", 
+      "Vorrichtung (Schleifen)"
     cells: {},
     historyLog: []
   }
