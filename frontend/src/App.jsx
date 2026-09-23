@@ -48,7 +48,8 @@ const reasonOptions = {
 
   Werkzeug: [
     "Werkzeug nicht vorhanden",
-    "THM-Programm nicht vorhanden"
+    "THM-Programm nicht vorhanden",
+    "Messstrategie definieren"
   ],
 
   Neuteil: [
@@ -56,16 +57,13 @@ const reasonOptions = {
   ],
 
   Messmittel: [
-    "Messmittel nicht verfügbar"
+    "Messmittel nicht verfügbar",
+    "Messmittel defekt"
   ],
 
   Programme: [
     "TopSolid-Programmierer fehlt",
     "Vericut-Programmierung ausstehend"
-  ],
-
-  ECI: [
-    "Systemausfall"
   ],
 
   Messen: [
@@ -78,10 +76,9 @@ const reasonOptions = {
     "Vorrichtung nicht vorhanden"
   ],
 
-  Systemfehler: [
-    "IT-Fehler",
-    "Programmfehler",
-    "Werkzeugfehler"
+  System/Shopfloor: [
+    "Shopfloor Fehler",
+    "Netzwerk Problem",
   ]
 };
 
