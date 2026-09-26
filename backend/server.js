@@ -353,6 +353,15 @@ app.post('/api/actions', (req, res) => {
   });
 });
 
+app.get('/api/actions', (req, res) => {
+
+  const data = loadData();
+
+  res.json(
+    Object.values(data._actions || {})
+  );
+});
+
 
 // === FRONTEND ANBINDUNG ===
 const finalDistPath = '/app/frontend/dist';
