@@ -289,6 +289,31 @@ app.post('/api/actions', (req, res) => {
   });
 });
 
+app.get('/api/actions', (req, res) => {
+
+  const data = loadData();
+
+  res.json(
+    Object.values(data._actions || {})
+  );
+});
+
+app.get('/api/actions/:id', (req, res) => {
+
+  const data = loadData();
+
+  const action = data._actions?.[req.params.id];
+
+  if (!action) {
+    return res.status(404).json({
+      error: 'Action nicht gefunden'
+    });
+  }
+
+  res.json(action);
+});
+
+
 // === FRONTEND ANBINDUNG ===
 const finalDistPath = '/app/frontend/dist';
 app.use(express.static(finalDistPath));
