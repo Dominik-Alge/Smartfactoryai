@@ -10,7 +10,6 @@ import {
   createActionObject
 } from './services/actionService.js';
 
-
 const app = express();
 const PORT = process.env.PORT || 10000;
 
