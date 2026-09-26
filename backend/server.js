@@ -62,9 +62,27 @@ function loadData() {
     }
     const raw = fs.readFileSync(STORAGE_FILE, 'utf8');
     const data = JSON.parse(raw);
-    Object.keys(data).forEach(key => cleanOldHistory(data[key]));
+
+    // FactoryAI Systemdaten sicherstellen
+    if (!data._system) {
+      data._system = {
+        nextActionId: 1
+      };
+    }
+
+    // Action Engine sicherstellen
+    if (!data._actions) {
+      data._actions = {};
+    }
+
+    // Nur echte Panels bearbeiten
+    getPanelKeys(data).forEach(key => {
+      cleanOldHistory(data[key]);
+    });
+
     memoryCache = data;
     return data;
+
   } catch (err) {
     console.error("Fehler beim Laden der Speicherdatei, nutze RAM-Fallback:", err);
     return memoryCache || defaultData;
