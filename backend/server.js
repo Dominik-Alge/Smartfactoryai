@@ -1,4 +1,4 @@
-// backend/server.js - TEIL 1
+9// backend/server.js - TEIL 1
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -264,6 +264,29 @@ app.post('/api/panel/:id/status', (req, res) => {
   }
 
   res.json({ success: true, panel });
+});
+
+app.post('/api/actions', (req, res) => {
+
+  const data = loadData();
+
+  // Sicherheitsnetz
+  if (!data._actions) {
+    data._actions = {};
+  }
+
+  const action = createActionObject(req.body);
+
+  action.id = generateActionId(data);
+
+  data._actions[action.id] = action;
+
+  saveData(data);
+
+  res.json({
+    success: true,
+    action
+  });
 });
 
 // === FRONTEND ANBINDUNG ===
