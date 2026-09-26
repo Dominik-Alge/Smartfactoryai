@@ -331,6 +331,28 @@ app.get('/api/actions/:id', (req, res) => {
   res.json(action);
 });
 
+app.post('/api/actions', (req, res) => {
+
+  const data = loadData();
+
+  if (!data._actions) {
+    data._actions = {};
+  }
+
+  const action = createActionObject(req.body);
+
+  action.id = generateActionId(data);
+
+  data._actions[action.id] = action;
+
+  saveData(data);
+
+  res.json({
+    success: true,
+    action
+  });
+});
+
 
 // === FRONTEND ANBINDUNG ===
 const finalDistPath = '/app/frontend/dist';
