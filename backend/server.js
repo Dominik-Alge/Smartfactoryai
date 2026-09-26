@@ -362,6 +362,56 @@ app.get('/api/actions', (req, res) => {
   );
 });
 
+// ======================================
+// ACTION ENGINE API
+// ======================================
+
+app.post('/api/actions', (req, res) => {
+
+  const data = loadData();
+
+  if (!data._actions) {
+    data._actions = {};
+  }
+
+  const action = createActionObject(req.body);
+
+  action.id = generateActionId(data);
+
+  data._actions[action.id] = action;
+
+  saveData(data);
+
+  res.json({
+    success: true,
+    action
+  });
+});
+
+app.get('/api/actions', (req, res) => {
+
+  const data = loadData();
+
+  res.json(
+    Object.values(data._actions || {})
+  );
+});
+
+app.get('/api/actions/:id', (req, res) => {
+
+  const data = loadData();
+
+  const action = data._actions?.[req.params.id];
+
+  if (!action) {
+    return res.status(404).json({
+      error: 'Action nicht gefunden'
+    });
+  }
+
+  res.json(action);
+});
+
 
 // === FRONTEND ANBINDUNG ===
 const finalDistPath = '/app/frontend/dist';
