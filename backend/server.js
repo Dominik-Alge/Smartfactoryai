@@ -356,6 +356,99 @@ app.get('/api/actions/:id', (req, res) => {
   res.json(action);
 });
 
+// ======================================
+// EXTENSION: ACTION ENGINE TASKS & ESCALATION (EBENE 2)
+// ======================================
+
+// 1. Task an ein bestehendes Ticket hängen und im Gedächtnis speichern
+app.post('/api/actions/:id/tasks', (req, res) => {
+  const data = loadData();
+  const action = data._actions?.[req.params.id];
+
+  if (!action) {
+    return res.status(404).json({ error: 'Action nicht gefunden' });
+  }
+
+  // Falls das 'engine'-Objekt noch nicht existiert, zukunftssicher initialisieren
+  if (!action.engine) {
+    action.engine = {
+      escalation: { currentLevel: 0, lastEscalatedAt: null },
+      tasks: [],
+      analysis: null,
+      lessonsLearned: null
+    };
+  }
+
+  // Task-ID generieren (z.B. TSK-001)
+  const taskId = `TSK-${String(action.engine.tasks.length + 1).padStart(3, '0')}`;
+  const now = new Date().toISOString();
+
+  // Task-Struktur aufbauen
+  const newTask = {
+    id: taskId,
+    title: req.body.title,
+    type: req.body.type || 'Sofortmaßnahme',
+    owner: req.body.owner || 'Nicht zugewiesen',
+    dueDate: req.body.dueDate ? new Date(req.body.dueDate).toISOString() : null,
+    status: 'open',
+    escalationLevel: req.body.escalationLevel || 1
+  };
+
+  // Daten in das bewilligte Objekt injizieren
+  action.engine.tasks.push(newTask);
+  action.updatedAt = now;
+
+  // Historie/Audit-Log (dein Gedächtnis) erweitern
+  action.history.push({
+    event: 'task_assigned',
+    user: req.body.creator || 'System',
+    timestamp: now,
+    details: `Task ${taskId} ("${newTask.title}") zugewiesen an [${newTask.owner}]`
+  });
+
+  // Speichern über deine bestehende Infrastruktur
+  data._actions[action.id] = action;
+  saveData(data);
+
+  res.json({ success: true, action });
+});
+
+// 2. Ticket-Eskalationsstufe erhöhen
+app.post('/api/actions/:id/escalate', (req, res) => {
+  const data = loadData();
+  const action = data._actions?.[req.params.id];
+
+  if (!action) {
+    return res.status(404).json({ error: 'Action nicht gefunden' });
+  }
+
+  if (!action.engine) {
+    action.engine = { escalation: { currentLevel: 0, lastEscalatedAt: null }, tasks: [] };
+  }
+
+  const now = new Date().toISOString();
+  const reason = req.body.reason || 'Fristüberschreitung';
+
+  // Eskalations-Stufe hochzählen
+  action.engine.escalation.currentLevel += 1;
+  action.engine.escalation.lastEscalatedAt = now;
+  action.priority = 'high'; // Priorität hochstufen
+  action.updatedAt = now;
+
+  action.history.push({
+    event: 'escalated',
+    user: 'System',
+    timestamp: now,
+    details: `Eskaliert auf Stufe ${action.engine.escalation.currentLevel}. Grund: ${reason}`
+  });
+
+  data._actions[action.id] = action;
+  saveData(data);
+
+  res.json({ success: true, action });
+});
+
+
 // === FRONTEND ANBINDUNG ===
 const finalDistPath = '/app/frontend/dist';
 app.use(express.static(finalDistPath));
