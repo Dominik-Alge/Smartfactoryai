@@ -89,6 +89,8 @@ export default function App() {
   const [modalConfig, setModalConfig] = useState({ isOpen: false, machineId: '', criterion: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showMemory, setShowMemory] = useState(false); // Steuert, ob Ebene 2 eingeblendet ist
+
 
   // 1. Liste aller verfügbaren Mappen (Panels) laden
   const fetchPanels = async () => {
@@ -252,6 +254,29 @@ export default function App() {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">FactoryAI — Shopfloor Panel</h1>
           <p className="text-sm font-semibold text-blue-600 mt-1">Ebene: {panelData.name || 'Wird geladen...'}</p>
         </div>
+
+        {/* DYNAMISCHER VERBINDUNGS-BADGE */}
+        {error ? (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Verbindung getrennt
+          </span>
+        ) : (
+          <div className="flex items-center gap-3">
+            {/* EINZIGE ÄNDERUNG: Der sichere Knopf für die Action-Engine */}
+            <button 
+              onClick={() => window.open('/action-engine', '_blank')}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition-colors flex items-center gap-1"
+            >
+              🧠 Action Engine (Ebene 2)
+            </button>
+
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Live synchronisiert
+            </span>
+          </div>
+        )}
         
         {/* DYNAMISCHER VERBINDUNGS-BADGE */}
         {error ? (
