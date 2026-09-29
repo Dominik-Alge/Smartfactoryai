@@ -246,12 +246,17 @@ export default function App() {
     }
   };
 
-  return (
+    return (
     <div className="bg-slate-50 min-h-screen p-4 md:p-8 font-sans">
       {/* Header-Leiste */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">FactoryAI — Shopfloor Panel</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Shopfloor Panel</h1>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+              Developed by Dominik Alge
+            </span>
+          </div>
           <p className="text-sm font-semibold text-blue-600 mt-1">Ebene: {panelData.name || 'Wird geladen...'}</p>
         </div>
 
