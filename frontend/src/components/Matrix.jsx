@@ -212,4 +212,14 @@ export default function ShopfloorMatrix({
                     </td>
                   );
                 })}
+                 <td style={{ backgroundColor: '#ffffff' }}></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  );
+}
 
