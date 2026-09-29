@@ -4,7 +4,6 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
-ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # === SCHRITT 2: Backend & Gesamtsystem vorbereiten ===
