@@ -296,7 +296,8 @@ export default function App() {
             {p.name || p.id}
           </button>
         ))}
-      return (
+    
+        return (
           <div className="bg-slate-50 min-h-screen p-4 md:p-8 font-sans">
             {/* Header-Leiste */}
             <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -317,38 +318,24 @@ export default function App() {
                   Verbindung getrennt
                 </span>
               )}
-              
-              {/* HIER WAR DIE ACTION ENGINE & DIE DOPPELTE LIVE-BADGE (Ausgeblendet für sauberen Look) */}
-              {/* {!error && (
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => window.open('/action-engine', '_blank')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition-colors flex items-center gap-1"
-                  >
-                    🧠 Action Engine (Ebene 2)
-                  </button>
-                </div>
-              )} */}
             </div>
-
-      {/* DYNAMISCHE EXCEL-REGISTERKARTEN (Mappen-Auswahl) */}
-      <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-200 pb-2">
-        {panels.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setActivePanelId(p.id)}
-            className={`px-4 py-2 text-sm font-bold rounded-t-lg transition border-t border-x -mb-[9px] ${
-              activePanelId === p.id
-                ? 'bg-white text-blue-600 border-gray-200 shadow-sm z-10'
-                : 'bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200'
-            }`}
-          >
-            {p.name || p.id}
-          </button>
-        ))}
-
-
-        
+      
+            {/* DYNAMISCHE EXCEL-REGISTERKARTEN (Mappen-Auswahl) */}
+            <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-200 pb-2">
+              {panels.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePanelId(p.id)}
+                  className={`px-4 py-2 text-sm font-bold rounded-t-lg transition border-t border-x -mb-[9px] ${
+                    activePanelId === p.id
+                      ? 'bg-white text-blue-600 border-gray-200 shadow-sm z-10'
+                      : 'bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200'
+                  }`}
+                >
+                  {p.name || p.id}
+                </button>
+              ))}
+            </div>        
         <button 
           onClick={handleCreateNewPanel}
           className="px-3 py-1.5 text-xs font-bold bg-gray-200 text-gray-700 hover:bg-slate-700 hover:text-white rounded-lg transition ml-2 shadow-sm"
