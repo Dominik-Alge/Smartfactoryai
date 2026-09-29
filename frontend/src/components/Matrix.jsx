@@ -16,7 +16,7 @@ export default function ShopfloorMatrix({
   const [newCriterion, setNewCriterion] = useState('');
   
   // Schaltet die Anzeige der kleinen Zeitstempel an den Ampeln um
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div style={{ fontFamily: '"Inter", "Segoe UI", sans-serif', color: '#0f172a', padding: '0 2px' }}>
