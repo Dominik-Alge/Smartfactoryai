@@ -246,7 +246,7 @@ export default function App() {
     }
   };
 
-    return (
+  return (
     <div className="bg-slate-50 min-h-screen p-4 md:p-8 font-sans">
       {/* Header-Leiste */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
