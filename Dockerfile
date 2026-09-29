@@ -5,7 +5,7 @@ COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build > build-log.txt 2>&1 || (cat build-log.txt && exit 1)
+RUN npm run build
 
 # === SCHRITT 2: Backend & Gesamtsystem vorbereiten ===
 FROM node:18-alpine
