@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Matrix from './components/Matrix';
 import Modal from './components/Modal';
-import SupervisorView from './components/SupervisorView'; // <-- Direkt unter den anderen Importen platzieren
+import SupervisorView from './components/SupervisorView';
+import ActionEngine from './ActionEngine';
 
 
 // Ersetze das alte Skript hiermit (Nutzt das offizielle Play CDN):
@@ -89,7 +90,8 @@ export default function App() {
   const [modalConfig, setModalConfig] = useState({ isOpen: false, machineId: '', criterion: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showMemory, setShowMemory] = useState(false); // Steuert, ob Ebene 2 eingeblendet ist
+  const [showMemory, setShowMemory] = useState(false);
+  const [currentView, setCurrentView] = useState('shopfloor');
 
 
   // 1. Liste aller verfügbaren Mappen (Panels) laden
@@ -246,6 +248,24 @@ export default function App() {
     }
   };
 
+  // Schaltet die Ansicht komplett auf Ebene 2 um, falls ausgewählt
+  if (currentView === 'action-engine') {
+    return (
+      <div className="relative">
+        <div className="bg-slate-950 p-3 text-left border-b border-slate-800 flex justify-between items-center px-6">
+          <span className="text-xs font-mono text-slate-500">Shopfloor System v4.3</span>
+          <button 
+            onClick={() => setCurrentView('shopfloor')}
+            className="text-xs font-bold bg-slate-800 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700 hover:text-white transition-all shadow-sm"
+          >
+            ⬅️ Zurück zum Hauptpanel
+          </button>
+        </div>
+        <ActionEngine />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-50 min-h-screen p-4 md:p-8 font-sans">
       {/* Header-Leiste */}
@@ -267,6 +287,17 @@ export default function App() {
             Verbindung getrennt
           </span>
         )}
+
+        {/* Action Engine Button reaktiviert! */}
+        {!error && (
+          <button 
+            onClick={() => setCurrentView('action-engine')}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition-colors flex items-center gap-1"
+          >
+            🧠 Action Engine (Ebene 2)
+          </button>
+        )}
+        
       </div>
         
       {/* DYNAMISCHE EXCEL-REGISTERKARTEN (Mappen-Auswahl) */}
