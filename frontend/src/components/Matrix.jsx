@@ -143,18 +143,28 @@ export default function ShopfloorMatrix({
                   const key = `${machineId}-${criterion}`;
                   const cellData = data?.[key] || data?.cells?.[key];
                   const isRed = cellData?.status === 'red';
-
-                  // Prüfen, ob es für DIESE spezifische Kombination einen Eintrag im -24h Verlauf gibt
-                  const cellHistory = historyLog?.find(log => 
-                    (log.type === 'Maschine' && log.name === machineId && log.note.includes(`"${criterion}"`)) ||
-                    (log.type === 'Kategorie' && log.name === criterion && log.note.includes(`"${machineId}"`))
-                  );
-
+                
+                  // 1. Zeitstempel für "vor 24 Stunden" berechnen
+                  const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+                
+                  // 2. ALLE passenden Einträge der letzten 24h für diese spezifische Zelle filtern
+                  const cellHistoryEvents = historyLog?.filter(log => {
+                    // Falls dein log.timestamp ein ISO-String oder Datum ist, in Zeit umwandeln
+                    const logTime = new Date(log.timestamp || Date.now()).getTime(); 
+                    const isRecent = logTime > twentyFourHoursAgo;
+                
+                    const matchesCell = 
+                      (log.type === 'Maschine' && log.name === machineId && log.note?.includes(`"${criterion}"`)) ||
+                      (log.type === 'Kategorie' && log.name === criterion && log.note?.includes(`"${machineId}"`));
+                
+                    return isRecent && matchesCell;
+                  }) || [];
+                
                   return (
                     <td key={machineId} style={{ padding: '12px 8px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff', verticalAlign: 'middle', textAlign: 'center' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
                         
-                        {/* Die 3D-Ampel */}
+                        {/* Die 3D-Ampel (Original-Design beibehalten) */}
                         <button
                           type="button"
                           onClick={() => onCellClick(machineId, criterion)}
@@ -172,40 +182,34 @@ export default function ShopfloorMatrix({
                               : '0 4px 10px rgba(16, 185, 129, 0.35), inset -2px -2px 6px rgba(0,0,0,0.6), inset 2px 2px 6px rgba(255,255,255,0.4)'
                           }}
                         />
-
-                        {/* Inline-Verlaufswarnung direkt unter/neben dem Punkt */}
-                        {showHistory && cellHistory && (
-                          <div 
-                            title={`${cellHistory.note} um ${cellHistory.time} Uhr`}
-                            style={{ 
-                              fontSize: '10px', 
-                              fontWeight: '700', 
-                              color: '#991b1b', 
-                              backgroundColor: '#fee2e2', 
-                              padding: '1px 4px', 
-                              borderRadius: '4px',
-                              border: '1px solid #fca5a5',
-                              cursor: 'help',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            ⏱️ {cellHistory.time}
+                
+                        {/* Inline-Verlaufswarnungen für ALLE Events der letzten 24h */}
+                        {showHistory && cellHistoryEvents.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                            {cellHistoryEvents.map((event, idx) => (
+                              <div 
+                                key={idx}
+                                title={`${event.note} um ${event.time || event.timestamp} Uhr`}
+                                style={{ 
+                                  fontSize: '10px', 
+                                  fontWeight: '700', 
+                                  color: '#991b1b', 
+                                  backgroundColor: '#fee2e2', 
+                                  padding: '1px 4px', 
+                                  borderRadius: '4px',
+                                  border: '1px solid #fca5a5',
+                                  cursor: 'help',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                ⏱️ {event.time || new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </div>
+                            ))}
                           </div>
                         )}
-
+                
                       </div>
                     </td>
                   );
                 })}
-                
-                <td style={{ backgroundColor: '#ffffff' }}></td>
-              </tr>
-            ))}
-          </tbody>
-          
-        </table>
-      </div>
-    </div>
-  );
-}
 
