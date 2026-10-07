@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  factoryai-shopfloor:
+    build: .
+    container_name: factoryai_app
+    ports:
+      - "10000:10000" # Macht die App im Firmennetzwerk unter Port 10000 erreichbar
+    environment:
+      - NODE_ENV=production
+      - PORT=10000
+      - SMTP_HOST=://bruderer.com # IT trägt hier den Firmen-Mailserver ein
+      - SMTP_PORT=587
+      - SMTP_USER=shopfloor-alert@bruderer.com
+      - SMTP_PASS=DeinSicheresPasswort
+    volumes:
+      # Hier wird die JSON-Datenbank direkt auf den echten Server gespiegelt.
+      # Dadurch bleibt die Datei bei jedem Neustart oder Update erhalten.
+      - ./shopfloor_data/shopfloor_storage.json:/app/backend/shopfloor_storage.json
+    restart: always
