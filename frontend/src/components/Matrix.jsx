@@ -181,13 +181,13 @@ export default function ShopfloorMatrix({
                           }}
                         />
                       
-                        {/* ⏱️ Inline-Verlaufswarnungen für ALLE Events der letzten 24h */}
+                        {/* ⏱️ Inline-Verlaufswarnungen für ALLE Events der letzten 24h (Korrektur: Läuft jetzt immer bei aktivem Button!) */}
                         {showHistory && cellHistoryEvents.length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
                             {cellHistoryEvents.map((event, idx) => (
                               <div 
                                 key={idx}
-                                title={`War temporär ROT am ${event.time || 'unbekannter Uhrzeit'}`}
+                                title={`Störungszeitfenster registriert`}
                                 style={{ 
                                   fontSize: '10px', 
                                   fontWeight: '700', 
@@ -219,4 +219,3 @@ export default function ShopfloorMatrix({
     </div>
   );
 }
-
