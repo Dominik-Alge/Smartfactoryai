@@ -173,11 +173,22 @@ app.get('/api/panel/:id', (req, res) => {
       historyLog: []
     });
   }
-
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
-  if (!panel.historyLog) panel.historyLog = [];
-  res.json(panel);
+  
+  if (!panel.historyLog) {
+    panel.historyLog = [];
+  }
+  
+  // 🎯 DATEN-ÖFFNUNG: Sendet das Objekt vollständig inklusive historyLog an das Board
+  res.json({
+    name: panel.name || '',
+    machines: panel.machines || [],
+    criteria: panel.criteria || [],
+    cells: panel.cells || {},
+    historyLog: panel.historyLog 
+  });
+
 });
 
 app.post('/api/panel', (req, res) => {
