@@ -413,55 +413,162 @@ app.post('/api/actions/:id/tasks', (req, res) => {
   res.json({ success: true, action });
 });
 
-// 2. Ticket-Eskalationsstufe erhöhen
-app.post('/api/actions/:id/escalate', (req, res) => {
+// =========================================================================
+// 7. STATUS-AMPEL ÄNDERN & AUTOMATISCH ENGINE TICKET ERSTELLEN (BRÜCKE)
+// =========================================================================
+app.post('/api/panel/:id/status', async (req, res) => {
   const data = loadData();
-  const action = data._actions?.[req.params.id];
+  const panel = data[req.params.id];
+  if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
 
-  if (!action) {
-    return res.status(404).json({ error: 'Action nicht gefunden' });
+  const { machineId, criterion, status, note, author } = req.body;
+  const cellKey = `${machineId}-${criterion}`;
+
+  // Status updaten
+  panel.cells[cellKey] = { status, note, author, timestamp: Date.now() };
+
+  // ⚠️ WENN STATUS ROT IST -> AUTOMATISCH EIN TICKET IN DER ACTION ENGINE ERSTELLEN
+  if (status === 'red') {
+    const nextIdNum = data._system?.nextActionId || 1;
+    const ticketId = `ACT-${String(nextIdNum).padStart(6, '0')}`;
+    
+    // Nächste ID hochzählen
+    if (!data._system) data._system = {};
+    data._system.nextActionId = nextIdNum + 1;
+
+    // Ticket-Objekt bauen und in _actions ablegen
+    data._actions[ticketId] = {
+      id: ticketId,
+      machineId: machineId,
+      status: "Analyse", // Startphase
+      escalationLevel: "Shopfloor (Lvl 1)",
+      title: `${criterion}: ${note || 'Störung gemeldet'}`,
+      cause: "",
+      lessonsLearned: "",
+      tasks: []
+    };
+
+    // E-Mail Alarm im Hintergrund abfeuern
+    sendStatusAlert(machineId, criterion, note, author);
   }
 
-  if (!action.engine) {
-    action.engine = { escalation: { currentLevel: 0, lastEscalatedAt: null }, tasks: [] };
-  }
-
-  const now = new Date().toISOString();
-  const reason = req.body.reason || 'Fristüberschreitung';
-
-  // Eskalations-Stufe hochzählen
-  action.engine.escalation.currentLevel += 1;
-  action.engine.escalation.lastEscalatedAt = now;
-  action.priority = 'high'; // Priorität hochstufen
-  action.updatedAt = now;
-
-  action.history.push({
-    event: 'escalated',
-    user: 'System',
-    timestamp: now,
-    details: `Eskaliert auf Stufe ${action.engine.escalation.currentLevel}. Grund: ${reason}`
-  });
-
-  data._actions[action.id] = action;
   saveData(data);
-
-  res.json({ success: true, action });
+  res.json({ success: true, panel });
 });
 
 
-// === FRONTEND ANBINDUNG ===
-const finalDistPath = '/app/frontend/dist';
-app.use(express.static(finalDistPath));
+// =========================================================================
+// ACTION ENGINE API ENDPUNKTE (Ebene 2)
+// =========================================================================
+
+// 1. Alle Tickets abrufen
+app.get('/api/tickets', (req, res) => {
+  const data = loadData();
+  // Konvertiert das _actions Objekt in ein flaches Array für das React-Frontend
+  const ticketList = Object.values(data._actions || {});
+  res.json(ticketList);
+});
+
+// 2. Neuen Task zu einem Ticket hinzufügen
+app.post('/api/ticket/:id/task', (req, res) => {
+  const { id } = req.params;
+  const { title, owner } = req.body;
+  const data = loadData();
+
+  const ticket = data._actions?.[id];
+  if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
+
+  const newTask = {
+    id: `TSK-${Date.now().toString().slice(-4)}`,
+    title,
+    owner,
+    status: 'open'
+  };
+
+  ticket.tasks = ticket.tasks || [];
+  ticket.tasks.push(newTask);
+
+  // Automatischer Phasenwechsel von Analyse zu Massnahmen
+  if (ticket.status === 'Analyse') {
+    ticket.status = 'Massnahmen';
+  }
+
+  saveData(data);
+  res.json(ticket);
+});
+
+// 3. Task-Status umschalten (open <-> completed)
+app.post('/api/ticket/:ticketId/task/:taskId/toggle', (req, res) => {
+  const { ticketId, taskId } = req.params;
+  const data = loadData();
+
+  const ticket = data._actions?.[ticketId];
+  if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
+
+  const task = ticket.tasks?.find(t => t.id === taskId);
+  if (!task) return res.status(404).json({ error: 'Task nicht gefunden' });
+
+  task.status = task.status === 'open' ? 'completed' : 'open';
+
+  saveData(data);
+  res.json(ticket);
+});
+
+// 4. Ticket eine Ebene eskalieren
+app.post('/api/ticket/:id/escalate', (req, res) => {
+  const { id } = req.params;
+  const data = loadData();
+
+  const ticket = data._actions?.[id];
+  if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
+
+  const levels = ["Shopfloor (Lvl 1)", "Schichtleitung (Lvl 2)", "Produktionsleitung (Lvl 3)", "Werksleitung (Lvl 4)"];
+  const currentIdx = levels.indexOf(ticket.escalationLevel);
+
+  if (currentIdx < levels.length - 1) {
+    ticket.escalationLevel = levels[currentIdx + 1];
+  }
+
+  saveData(data);
+  res.json(ticket);
+});
+
+// 5. Ticket mit KVP (Root Cause) abschliessen und schliessen
+app.post('/api/ticket/:id/close', (req, res) => {
+  const { id } = req.params;
+  const { cause, lessonsLearned } = req.body;
+  const data = loadData();
+
+  const ticket = data._actions?.[id];
+  if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
+
+  ticket.status = 'Geschlossen';
+  ticket.cause = cause;
+  ticket.lessonsLearned = lessonsLearned;
+  
+  // Alle verbleibenden Tasks automatisch auf erledigt setzen
+  ticket.tasks = ticket.tasks?.map(t => ({ ...t, status: 'completed' })) || [];
+
+  saveData(data);
+  res.json(ticket);
+});
+
+
+// =========================================================================
+// FRONTEND SERVING (Wichtig für euren späteren Firmen-Server-Deploy!)
+// =========================================================================
+// Liefert im Produktionsmodus den Frontend-Build aus dem 'dist' Ordner aus
+app.use(express.static(path.join(__dirname, '../dist')));
 
 app.get('*', (req, res) => {
-  const indexPath = path.join(finalDistPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send(`<h1>Fehler: index.html nicht gefunden</h1>`);
-  }
+  // Ignoriere API-Anfragen, falls sie fehlerhaft waren
+  if (req.originalUrl.startsWith('/api')) return res.status(404).json({ error: "API-Endpunkt nicht gefunden" });
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-app.listen(PORT, () => { console.log(`Server läuft auf Port ${PORT}`); });
+// Server starten
+app.listen(PORT, () => {
+  console.log(`🚀 FactoryAI Backend & Action Engine laufen stabil auf Port ${PORT}`);
+});
 
 
