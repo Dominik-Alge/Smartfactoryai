@@ -29,8 +29,16 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// Sicherer, absoluter Pfad im Docker-Backend-Verzeichnis
-const STORAGE_FILE = path.join(__dirname, 'shopfloor_storage.json');
+// =========================================================================
+// PERSISTENTE DATEI-ABLAGE (Erstellt den sicheren Docker-Ordner)
+// =========================================================================
+const DATA_DIR = path.join(__dirname, 'shopfloor_data');
+const STORAGE_FILE = path.join(DATA_DIR, 'shopfloor_storage.json');
+
+// Automatischer Schutz: Falls der Ordner beim allerersten Start fehlt, erstellen
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const defaultData = {
   "drehen": {
