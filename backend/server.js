@@ -279,16 +279,6 @@ app.post('/api/panel/:id/status', async (req, res) => {
   res.json({ success: true, panel });
 });
 
-    actionTicket.id = generateActionId(data);
-    data._actions[actionTicket.id] = actionTicket;
-
-    sendStatusAlert(machineId, criterion, note, author);
-  }
-
-  saveData(data);
-  res.json({ success: true, panel });
-});
-
 // --- ACTION ENGINE API ---
 app.get('/api/tickets', (req, res) => {
   const data = loadData();
