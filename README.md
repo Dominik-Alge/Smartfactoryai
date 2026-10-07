@@ -9,20 +9,46 @@ Das System ist so aufgebaut, dass Informationen über verschiedene Ebenen gebün
 - **Maschine / Arbeitsplatz** (Detaillierte Matrixansicht)
 
 ## 🛠️ Tech-Stack
-- **Frontend:** React (geplant)
+- **Frontend:** React
 - **Backend:** Node.js / Express
-- **Infrastruktur:** Docker & Render (Hosting in Frankfurt, EU-Central)
-- **Datenbank:** PostgreSQL (geplant für Notizen und Historie)
+- **Infrastruktur:** Docker & Docker Compose (für On-Premise Betriebs-Server)
+- **Datenbank:** JSON-File Persistence (`shopfloor_storage.json`)
 
 ## 📁 Projektstruktur
-- `server.js` - Der Node.js Express Server (API-Endpunkte für Stati und Notizen)
-- `package.json` - Verwaltung der Node.js Abhängigkeiten
-- `Dockerfile` - Konfiguration für das automatische Deployment auf Render
+- `backend/server.js` - Der Node.js Express Server (API-Endpunkte für Stati und Notizen)
+- `backend/package.json` - Verwaltung der Node.js Abhängigkeiten
+- `frontend/` - Quellcode des React-Frontends
+- `Dockerfile` - Multi-Stage Konfiguration zum Bauen von Frontend & Backend
+- `docker-compose.yml` - Orchestrierung für den Start auf dem lokalen Server
 
-## ⚙️ Lokale Entwicklung (GitHub Codespace)
-Um den Server im Codespace testweise zu starten, führe folgende Befehle im Terminal aus:
-1. `npm install` (Abhängigkeiten installieren)
-2. `node server.js` (Server starten)
+---
 
-## 🌐 Deployment
-Änderungen am `main`-Branch werden über GitHub Webhooks automatisch direkt auf Render live geschaltet.
+## 💻 Installation auf dem Firmenserver (On-Premise)
+
+### Voraussetzungen
+Auf dem Zielserver muss **Docker** und **Docker Compose** installiert sein.
+
+### Schritt-für-Schritt-Installation
+
+1. **Paket entpacken:**
+   Kopiere die ZIP-Datei auf den Server und entpacke sie in ein beliebiges Verzeichnis (z. B. `/opt/factoryai`).
+   ```bash
+   cd /opt/factoryai
+   ```
+
+2. **Anwendung bauen und starten:**
+   Führe den folgenden Befehl im Terminal aus, um das System lokal auf dem Server zu bauen und im Hintergrund zu starten:
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. **Erreichbarkeit prüfen:**
+   Die App ist nun im Firmennetzwerk unter der IP-Adresse des Servers erreichbar:
+   `http://<SERVER-IP>:10000`
+
+### 💾 Datensicherheit & Backup
+Docker erstellt beim ersten Start automatisch eine Datei namens `shopfloor_storage.json` im Unterordner `./shopfloor_data/`. 
+- Hierin liegt die gesamte Datenbanklogik (Maschinenstati, Notizen und Konfigurationen).
+- Diese Datei überlebt jeden Container-Neustart und jedes Software-Update.
+- **Backup:** Für die tägliche Datensicherung muss die IT lediglich den Ordner `./shopfloor_data/` sichern.
+
