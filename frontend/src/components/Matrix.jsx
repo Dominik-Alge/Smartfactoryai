@@ -152,8 +152,8 @@ export default function ShopfloorMatrix({
                     const logTime = new Date(log.timestampMs || log.timestamp || Date.now()).getTime(); 
                     const isRecent = logTime > twentyFourHoursAgo;
                     
-                    // Korrigierter Match: Prüft direkt Maschinennummer und Kategorie aus der Daten-Injektion
-                    const matchesCell = log.machineId === machineId && log.criterion === criterion;
+                    // Prüft direkt, ob die Maschinennummer und das Kriterium übereinstimmen
+                    const matchesCell = String(log.machineId) === String(machineId) && String(log.criterion) === String(criterion);
                     
                     return isRecent && matchesCell;
                   }) || [];
