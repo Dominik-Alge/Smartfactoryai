@@ -555,20 +555,42 @@ app.post('/api/ticket/:id/close', (req, res) => {
 
 
 // =========================================================================
-// FRONTEND SERVING (Wichtig für euren späteren Firmen-Server-Deploy!)
+// FRONTEND SERVING (Repariert für Render & euren Firmen-Server)
 // =========================================================================
-// Liefert im Produktionsmodus den Frontend-Build aus dem 'dist' Ordner aus
-app.use(express.static(path.join(__dirname, '../dist')));
 
+// Pfad zum dist-Ordner absolut auflösen (sucht nach dem 'dist'-Ordner im Projekt-Wurzelverzeichnis)
+const DIST_PATH = path.resolve('./dist');
+
+// Statische Assets (JS, CSS, Bilder) direkt bereitstellen
+app.use(express.static(DIST_PATH));
+
+// Spezieller Catch für das Favicon, um CSP-Fehler im Log zu vermeiden
+app.get('/favicon.ico', (req, res) => {
+  const faviconPath = path.join(DIST_PATH, 'favicon.ico');
+  if (fs.existsSync(faviconPath)) {
+    res.sendFile(faviconPath);
+  } else {
+    res.status(204).end(); // Sende "No Content", falls keins da ist, statt abzustürzen
+  }
+});
+
+// Alle anderen Routen landen bei der index.html (SPA Routing)
 app.get('*', (req, res) => {
-  // Ignoriere API-Anfragen, falls sie fehlerhaft waren
-  if (req.originalUrl.startsWith('/api')) return res.status(404).json({ error: "API-Endpunkt nicht gefunden" });
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  // Verhindert Endlosschleifen, falls API-Routes falsch geschrieben wurden
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(404).json({ error: "API-Endpunkt nicht gefunden" });
+  }
+  
+  const indexPath = path.join(DIST_PATH, 'index.html');
+  
+  // Überprüfung, ob das Frontend überhaupt schon gebaut wurde
+  if (!fs.existsSync(indexPath)) {
+    console.error(`⚠️ FEHLER: Frontend-Build wurde nicht gefunden unter: ${indexPath}`);
+    return res.status(500).send("Frontend wurde noch nicht gebaut. Bitte 'npm run build' ausführen.");
+  }
+
+  res.sendFile(indexPath);
 });
 
-// Server starten
-app.listen(PORT, () => {
-  console.log(`🚀 FactoryAI Backend & Action Engine laufen stabil auf Port ${PORT}`);
-});
 
 
