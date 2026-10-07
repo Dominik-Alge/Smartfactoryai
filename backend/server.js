@@ -32,7 +32,7 @@ const defaultData = {
     criteria: ["Maschine", "Qualität", "Material", "AVOR", "DISPO", "Personal", "Messmittel", "Messen (anmelden)", "Vorrichtung"],
     cells: {},
     historyLog: []
-  }
+  },
   "_system": { "nextActionId": 1 },
   "_actions": {}
 };
