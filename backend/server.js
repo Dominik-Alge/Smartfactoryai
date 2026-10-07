@@ -5,10 +5,6 @@ import path from 'path';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import {
-  generateActionId,
-  createActionObject
-} from './services/actionService.js';
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -37,16 +33,19 @@ const defaultData = {
     cells: {},
     historyLog: []
   }
+  "_system": { "nextActionId": 1 },
+  "_actions": {}
 };
 
 // Globaler RAM-Cache, falls Festplattenschreiben auf Render fehlschlägt
 let memoryCache = null;
 
+function getPanelKeys(data) {
+  return Object.keys(data).filter(key => key !== '_system' && key !== '_actions');
+}
+
 function cleanOldHistory(panel) {
-  if (!panel.historyLog) {
-    panel.historyLog = [];
-    return;
-  }
+  if (!panel || !panel.historyLog) return;
   const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
   panel.historyLog = panel.historyLog.filter(log => log.timestampMs > twentyFourHoursAgo);
 }
@@ -62,28 +61,17 @@ function loadData() {
     const raw = fs.readFileSync(STORAGE_FILE, 'utf8');
     const data = JSON.parse(raw);
 
-    // FactoryAI Systemdaten sicherstellen
-    if (!data._system) {
-      data._system = {
-        nextActionId: 1
-      };
-    }
+    if (!data._system) data._system = { nextActionId: 1 };
+    if (!data._actions) data._actions = {};
 
-    // Action Engine sicherstellen
-    if (!data._actions) {
-      data._actions = {};
-    }
-
-    // Nur echte Panels bearbeiten
     getPanelKeys(data).forEach(key => {
       cleanOldHistory(data[key]);
     });
 
     memoryCache = data;
     return data;
-
   } catch (err) {
-    console.error("Fehler beim Laden der Speicherdatei, nutze RAM-Fallback:", err);
+    console.error("Fehler beim Laden, RAM-Fallback genutzt:", err);
     return memoryCache || defaultData;
   }
 }
@@ -114,12 +102,8 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.SMTP_USER || 'shopfloor-alert@bruderer.com',
     pass: process.env.SMTP_PASS || 'DeinSicheresPasswort'
-  },
-  debug: true,
-  logger: true
+  }
 });
-
-// backend/server.js - TEIL 2
 
 const sendStatusAlert = async (machineId, criterion, note, author) => {
   const contact = criterionContacts[criterion];
@@ -140,17 +124,15 @@ const sendStatusAlert = async (machineId, criterion, note, author) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`[Email] Erfolgreich gesendet an ${contact.email}`);
   } catch (error) {
-    console.error('[Email-Fehler] Ausführliches Log für Render:', error);
+    console.error('E-Mail-Fehler:', error);
   }
 };
 
-// === API ENDPUNKTE ===
-
+// --- BASE API ---
 app.get('/api/panels', (req, res) => {
   const data = loadData();
-  const list = Object.keys(data).map(key => ({ id: key, name: data[key].name }));
+  const list = getPanelKeys(data).map(key => ({ id: key, name: data[key].name }));
   list.unshift({ id: 'insel_ds', name: '👁️ Insel-Sicht DS (Vorgesetzte)' });
   res.json(list);
 });
