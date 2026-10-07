@@ -16,5 +16,5 @@ services:
     volumes:
       # Hier wird die JSON-Datenbank direkt auf den echten Server gespiegelt.
       # Dadurch bleibt die Datei bei jedem Neustart oder Update erhalten.
-      - ./shopfloor_data/shopfloor_storage.json:/app/backend/shopfloor_storage.json
+      - ./shopfloor_data:/app/backend/shopfloor_data
     restart: always
