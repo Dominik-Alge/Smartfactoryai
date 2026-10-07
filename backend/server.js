@@ -255,6 +255,43 @@ app.post('/api/panel/:id/status', async (req, res) => {
   if (status === 'red' && previousStatus !== 'red') {
     if (!data._actions) data._actions = {};
 
+    // 1. Erzeuge das Ticket für die Action Engine (Ebene 2)
+    const actionTicket = createActionObject({
+      title: `${criterion}: ${note || 'Störung gemeldet'}`,
+      status: "Analyse",
+      escalationLevel: "Shopfloor (Lvl 1)",
+      tasks: [],
+      cause: "",
+      lessonsLearned: ""
+    });
+
+    actionTicket.id = generateActionId(data);
+    actionTicket.machineId = String(machineId);   
+    actionTicket.criterion = String(criterion);   
+    
+    data._actions[actionTicket.id] = actionTicket;
+
+    // 2. ⏱️ NEU: Speicher den Vorfall zusätzlich im 24h-Protokoll der Mappe (Ebene 1)
+    const timeString = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' });
+    if (!panel.historyLog) panel.historyLog = [];
+    panel.historyLog.push({
+      machineId,
+      criterion,
+      time: timeString,
+      timestampMs: Date.now()
+    });
+
+    sendStatusAlert(machineId, criterion, note, author);
+  }
+
+  saveData(data);
+  res.json({ success: true, panel });
+});
+
+  // Automatisches Ticket-Erstellen bei ROT
+  if (status === 'red' && previousStatus !== 'red') {
+    if (!data._actions) data._actions = {};
+
     // Erzeuge das Ticket-Basisobjekt über deinen Service
     const actionTicket = createActionObject({
       title: `${criterion}: ${note || 'Störung gemeldet'}`,
