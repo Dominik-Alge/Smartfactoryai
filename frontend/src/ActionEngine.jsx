@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
+const API_URL = window.location.origin;
+
 export default function ActionEngine() {
   // Tabs für Hauptansicht: "active" (Aktive Vorfälle) oder "history" (Historie & Auswertung)
   const [activeTab, setActiveTab] = useState('active');
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // States für Formulareingaben
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -12,118 +16,116 @@ export default function ActionEngine() {
   const [kvpCause, setKvpCause] = useState('');
   const [kvpLesson, setKvpLesson] = useState('');
 
-  // Initialisierung erweiterter Mock-Daten
-  useEffect(() => {
-    const mockData = [
-      {
-        id: "ACT-000123",
-        machineId: "13503",
-        status: "Analyse", // Analyse, Massnahmen, KVP, Geschlossen
-        escalationLevel: "Shopfloor (Lvl 1)",
-        title: "Maschine 13503 steht - Spindelfehler",
-        cause: "",
-        lessonsLearned: "",
-        tasks: [
-          { id: "TSK-01", title: "Kühlmittelfilter spülen", owner: "Instandhaltung", status: "open" }
-        ]
-      },
-      {
-        id: "ACT-000120",
-        machineId: "10244",
-        status: "Geschlossen",
-        escalationLevel: "Produktionsleitung (Lvl 3)",
-        title: "Druckabfall Hydraulikaggregat",
-        cause: "Verschlissene O-Ring-Dichtung am Hauptventil durch Kavitation.",
-        lessonsLearned: "Wartungsintervall für Dichtungen dieses Typs von 12 auf 9 Monate verkürzen.",
-        tasks: [
-          { id: "TSK-99", title: "Dichtung tauschen", owner: "Instandhaltung", status: "completed" }
-        ]
+  // 1. Alle Tickets vom Backend laden
+  const fetchTickets = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/tickets`);
+      if (!response.ok) throw new Error('Fehler beim Laden der Tickets');
+      const data = await response.json();
+      setTickets(data);
+      
+      // Falls aktuell ein Ticket ausgewählt ist, updaten wir dessen State mit den frischen Server-Daten
+      if (selectedTicket) {
+        const freshTicket = data.find(t => t.id === selectedTicket.id);
+        setSelectedTicket(freshTicket || null);
       }
-    ];
-    setTickets(mockData);
-  }, []);
-
-  // Task hinzufügen
-  const handleAddTask = (e) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim() || !selectedTicket) return;
-
-    const newTask = {
-      id: `TSK-${Date.now().toString().slice(-2)}`,
-      title: newTaskTitle,
-      owner: newTaskOwner,
-      status: 'open'
-    };
-
-    const updatedTickets = tickets.map(t => {
-      if (t.id === selectedTicket.id) {
-        return { 
-          ...t, 
-          tasks: [...t.tasks, newTask],
-          status: t.status === 'Analyse' ? 'Massnahmen' : t.status // Automatisch in Phase "Massnahmen" wechseln
-        };
-      }
-      return t;
-    });
-
-    setTickets(updatedTickets);
-    setSelectedTicket(updatedTickets.find(t => t.id === selectedTicket.id));
-    setNewTaskTitle('');
-  };
-
-  // Task-Status umschalten
-  const toggleTaskStatus = (taskId) => {
-    const updatedTickets = tickets.map(t => {
-      if (t.id === selectedTicket.id) {
-        const updatedTasks = t.tasks.map(task => 
-          task.id === taskId ? { ...task, status: task.status === 'open' ? 'completed' : 'open' } : task
-        );
-        return { ...t, tasks: updatedTasks };
-      }
-      return t;
-    });
-    setTickets(updatedTickets);
-    setSelectedTicket(updatedTickets.find(t => t.id === selectedTicket.id));
-  };
-
-  // Manuelle Eskalation triggern
-  const triggerEscalation = () => {
-    const levels = ["Shopfloor (Lvl 1)", "Schichtleitung (Lvl 2)", "Produktionsleitung (Lvl 3)", "Werksleitung (Lvl 4)"];
-    const currentIdx = levels.indexOf(selectedTicket.escalationLevel);
-    if (currentIdx < levels.length - 1) {
-      const nextLevel = levels[currentIdx + 1];
-      const updatedTickets = tickets.map(t => 
-        t.id === selectedTicket.id ? { ...t, escalationLevel: nextLevel } : t
-      );
-      setTickets(updatedTickets);
-      setSelectedTicket(updatedTickets.find(t => t.id === selectedTicket.id));
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError('Tickets konnten nicht geladen werden.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // KVP / 8D abschliessen (Kreislauf schliessen)
-  const submitKvpAndClose = (e) => {
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  // 2. Neuen Task zu einem bestehenden Ticket hinzufügen
+  const handleAddTask = async (e) => {
     e.preventDefault();
-    const updatedTickets = tickets.map(t => {
-      if (t.id === selectedTicket.id) {
-        return {
-          ...t,
-          status: 'Geschlossen',
-          cause: kvpCause,
-          lessonsLearned: kvpLesson,
-          tasks: t.tasks.map(task => ({ ...task, status: 'completed' })) // Alle verbleibenden Tasks schliessen
-        };
-      }
-      return t;
-    });
-    setTickets(updatedTickets);
-    setSelectedTicket(null); // Deselektieren nach Abschluss
-    setKvpCause('');
-    setKvpLesson('');
+    if (!newTaskTitle.trim() || !selectedTicket) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/ticket/${selectedTicket.id}/task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTaskTitle, owner: newTaskOwner })
+      });
+
+      if (!response.ok) throw new Error('Task konnte nicht zugewiesen werden');
+      
+      setNewTaskTitle('');
+      await fetchTickets(); // Daten neu laden (setzt auch selectedTicket neu)
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  // Filterung für Listen & Historie
+  // 3. Status eines Tasks umschalten (open <-> completed)
+  const toggleTaskStatus = async (taskId) => {
+    if (!selectedTicket) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/ticket/${selectedTicket.id}/task/${taskId}/toggle`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error('Task-Status konnte nicht geändert werden');
+      await fetchTickets();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // 4. Manuelle Eskalation triggern
+  const triggerEscalation = async () => {
+    if (!selectedTicket) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/ticket/${selectedTicket.id}/escalate`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error('Eskalation fehlgeschlagen');
+      await fetchTickets();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // 5. KVP / 8D abschliessen und Ticket archivieren (Kreislauf schliessen)
+  const submitKvpAndClose = async (e) => {
+    e.preventDefault();
+    if (!selectedTicket) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/ticket/${selectedTicket.id}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cause: kvpCause, lessonsLearned: kvpLesson })
+      });
+
+      if (!response.ok) throw new Error('Ticket konnte nicht geschlossen werden');
+      
+      setKvpCause('');
+      setKvpLesson('');
+      setSelectedTicket(null); // Zurück zur Übersicht
+      await fetchTickets();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Filterung für Listen & Historie im Frontend
   const activeTickets = tickets.filter(t => t.status !== 'Geschlossen');
   const closedTickets = tickets.filter(t => t.status === 'Geschlossen');
+
+  if (loading && tickets.length === 0) {
+    return <div className="p-6 text-white text-center">Lade Action Engine Daten...</div>;
+  }
 
   return (
     <div className="bg-slate-900 min-h-screen text-slate-100 p-6 font-sans antialiased">
@@ -131,7 +133,9 @@ export default function ActionEngine() {
         <div>
           <h1 className="text-xl font-black tracking-wider text-blue-400">FACTORYAI // ACTION ENGINE</h1>
           <p className="text-xs text-slate-400">Ebene 2 — Shopfloor Learning Matrix & KVP-Gedächtnis</p>
+          {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
         </div>
+
         {/* Navigation Tabs */}
         <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs font-bold">
           <button 
@@ -157,14 +161,15 @@ export default function ActionEngine() {
               <span>Aktive Vorfälle</span>
               <span className="animate-pulse bg-red-900/50 text-red-400 border border-red-800 px-1.5 rounded text-[10px]">LIVE</span>
             </h2>
+
             <div className="space-y-2">
               {activeTickets.map(ticket => (
                 <div 
                   key={ticket.id}
                   onClick={() => {
                     setSelectedTicket(ticket);
-                    setKvpCause(ticket.cause);
-                    setKvpLesson(ticket.lessonsLearned);
+                    setKvpCause(ticket.cause || '');
+                    setKvpLesson(ticket.lessonsLearned || '');
                   }}
                   className={`p-3 rounded-lg cursor-pointer border-l-4 transition-all ${
                     selectedTicket?.id === ticket.id 
@@ -191,7 +196,7 @@ export default function ActionEngine() {
             </div>
           </div>
 
-          {/* RECHTER BEREICH: CENTRALE ACTION ENGINE DOCK */}
+          {/* RECHTER BEREICH: ZENTRALE ACTION ENGINE DOCK */}
           <div className="md:col-span-2 bg-slate-800 rounded-xl p-6 border border-slate-700">
             {selectedTicket ? (
               <div>
@@ -213,61 +218,34 @@ export default function ActionEngine() {
                       onClick={triggerEscalation} 
                       className="mt-2 text-[10px] bg-slate-700 hover:bg-red-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
                     >
-                      $\rightarrow$ Eine Ebene eskalieren
+                      &rarr; Eine Ebene eskalieren
                     </button>
                   </div>
                 </div>
                 
-                {/* Visualisierter Fortschrittspfad basierend auf IKOS */}
+                                {/* Visualisierter Fortschrittspfad */}
                 <div className="flex flex-col sm:flex-row items-center gap-2 bg-slate-900 p-4 rounded-lg text-xs font-bold justify-between mb-6 border border-slate-800">
-                  
-                  {/* Stufe 1: Analyse */}
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                    <span className={`pb-1 uppercase tracking-wider ${
-                      selectedTicket.status === 'Analyse' 
-                        ? 'text-blue-400 border-b-2 border-blue-400' 
-                        : 'text-emerald-400'
-                    }`}>
+                    <span className={`pb-1 uppercase tracking-wider ${selectedTicket.status === 'Analyse' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-emerald-400'}`}>
                       1. Analyse
                     </span>
-                    <svg className="h-4 w-4 text-slate-600 hidden sm:block mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <span className="text-slate-600 hidden sm:block mx-2">&rarr;</span>
                   </div>
-                
-                  {/* Stufe 2: Massnahmen */}
+                  
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                    <span className={`pb-1 uppercase tracking-wider ${
-                      selectedTicket.status === 'Massnahmen' 
-                        ? 'text-blue-400 border-b-2 border-blue-400' 
-                        : (selectedTicket.status === 'KVP' || selectedTicket.status === 'Geschlossen') 
-                          ? 'text-emerald-400' 
-                          : 'text-slate-500'
-                    }`}>
+                    <span className={`pb-1 uppercase tracking-wider ${selectedTicket.status === 'Massnahmen' ? 'text-blue-400 border-b-2 border-blue-400' : (selectedTicket.status === 'KVP' || selectedTicket.status === 'Geschlossen') ? 'text-emerald-400' : 'text-slate-500'}`}>
                       2. Massnahmen
                     </span>
-                    <svg className="h-4 w-4 text-slate-600 hidden sm:block mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <span className="text-slate-600 hidden sm:block mx-2">&rarr;</span>
                   </div>
-                
-                  {/* Stufe 3: KVP / 8D */}
+                  
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                    <span className={`pb-1 uppercase tracking-wider ${
-                      selectedTicket.status === 'KVP' 
-                        ? 'text-blue-400 border-b-2 border-blue-400' 
-                        : selectedTicket.status === 'Geschlossen' 
-                          ? 'text-emerald-400' 
-                          : 'text-slate-500'
-                    }`}>
+                    <span className={`pb-1 uppercase tracking-wider ${selectedTicket.status === 'KVP' ? 'text-blue-400 border-b-2 border-blue-400' : selectedTicket.status === 'Geschlossen' ? 'text-emerald-400' : 'text-slate-500'}`}>
                       3. KVP / 8D
                     </span>
-                    <svg className="h-4 w-4 text-slate-600 hidden sm:block mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <span className="text-slate-600 hidden sm:block mx-2">&rarr;</span>
                   </div>
-                
-                  {/* Stufe 4: Lessons Learned */}
+                  
                   <div className="flex items-center w-full sm:w-auto justify-between sm:justify-start">
                     <span className={`pb-1 uppercase tracking-wider ${selectedTicket.status === 'Geschlossen' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-500'}`}>
                       4. Lessons Learned
@@ -282,7 +260,7 @@ export default function ActionEngine() {
                     <h3 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">Taskvergabe & Aktionen</h3>
                     
                     <div className="space-y-2 mb-4 max-h-[180px] overflow-y-auto">
-                      {selectedTicket.tasks.map(t => (
+                      {selectedTicket.tasks?.map(t => (
                         <div 
                           key={t.id} 
                           onClick={() => toggleTaskStatus(t.id)}
@@ -339,7 +317,6 @@ export default function ActionEngine() {
                       <h3 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">KVP & 8D Einbindung</h3>
                       <p className="text-[11px] text-slate-400 mb-3">Ursache erfassen, um das IKOS-Gedächtnis anzulernen.</p>
                     </div>
-
                     <form onSubmit={submitKvpAndClose} className="space-y-3">
                       <div>
                         <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Wahre Ursache (Root Cause)</label>
@@ -348,14 +325,7 @@ export default function ActionEngine() {
                           rows="2"
                           placeholder="Warum trat der Fehler auf? (z.B. Materialermüdung)"
                           value={kvpCause}
-                          onChange={(e) => {
-                            setKvpCause(e.target.value);
-                            if (selectedTicket.status === 'Massnahmen' || selectedTicket.status === 'Analyse') {
-                              const updated = tickets.map(t => t.id === selectedTicket.id ? { ...t, status: 'KVP' } : t);
-                              setTickets(updated);
-                              setSelectedTicket(updated.find(t => t.id === selectedTicket.id));
-                            }
-                          }}
+                          onChange={(e) => setKvpCause(e.target.value)}
                           className="w-full text-xs bg-slate-800 border border-slate-700 rounded p-2 text-white focus:outline-none focus:border-blue-500"
                         />
                       </div>
@@ -376,7 +346,6 @@ export default function ActionEngine() {
                     </form>
                   </div>
                 </div>
-
               </div>
             ) : (
               <div className="text-center text-slate-500 py-24 border border-dashed border-slate-700 rounded-xl">
@@ -387,9 +356,8 @@ export default function ActionEngine() {
           </div>
         </div>
       ) : (
-        /* TAB 2: HISTORIE / UNTERNEHMENSGEDÄCHTNIS */
+                /* TAB 2: HISTORIE / UNTERNEHMENSGEDÄCHTNIS */
         <div className="space-y-6">
-          {/* KPI Dashboard Analytics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
               <span className="block text-xs text-slate-400 uppercase tracking-wider font-bold">Gelöste Fälle gesamt</span>
@@ -461,4 +429,8 @@ export default function ActionEngine() {
     </div>
   );
 }
+
+
+
+
 
