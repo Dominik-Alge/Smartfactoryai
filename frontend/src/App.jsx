@@ -124,7 +124,8 @@ export default function App() {
         name: data.name || '',
         machines: data.machines || [],
         criteria: data.criteria || [],
-        cells: data.cells || {}
+        cells: data.cells || {},
+        historyLog: data.historyLog || []
       });
       setError(null);
     } catch (err) {
