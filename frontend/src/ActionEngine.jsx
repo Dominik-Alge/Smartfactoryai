@@ -15,6 +15,7 @@ export default function ActionEngine() {
   const [newTaskOwner, setNewTaskOwner] = useState('Instandhaltung');
   const [kvpCause, setKvpCause] = useState('');
   const [kvpLesson, setKvpLesson] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // 1. Alle Tickets vom Backend laden
   const fetchTickets = async () => {
@@ -121,7 +122,22 @@ export default function ActionEngine() {
 
   // Filterung für Listen & Historie im Frontend
   const activeTickets = tickets.filter(t => t.status !== 'Geschlossen');
-  const closedTickets = tickets.filter(t => t.status === 'Geschlossen');
+  const closedTickets = tickets.filter(t => {
+    if (t.status !== 'Geschlossen') return false;
+    
+    const search = searchTerm.toLowerCase().trim();
+    if (!search) return true; // Wenn nichts getippt wurde, zeige alle an
+
+    // Durchsuche alle relevanten Felder des Tickets gleichzeitig
+    return (
+      t.id?.toLowerCase().includes(search) ||
+      t.title?.toLowerCase().includes(search) ||
+      t.machineId?.toLowerCase().includes(search) ||
+      t.cause?.toLowerCase().includes(search) ||
+      t.lessonsLearned?.toLowerCase().includes(search) ||
+      t.escalationLevel?.toLowerCase().includes(search)
+    );
+  });
 
   if (loading && tickets.length === 0) {
     return <div className="p-6 text-white text-center">Lade Action Engine Daten...</div>;
@@ -356,8 +372,9 @@ export default function ActionEngine() {
           </div>
         </div>
       ) : (
-                /* TAB 2: HISTORIE / UNTERNEHMENSGEDÄCHTNIS */
+        /* TAB 2: HISTORIE / UNTERNEHMENSGEDÄCHTNIS */
         <div className="space-y-6">
+          {/* KPI Dashboard Analytics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
               <span className="block text-xs text-slate-400 uppercase tracking-wider font-bold">Gelöste Fälle gesamt</span>
@@ -372,13 +389,38 @@ export default function ActionEngine() {
             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
               <span className="block text-xs text-slate-400 uppercase tracking-wider font-bold">Eskalationsquote</span>
               <span className="text-3xl font-black text-amber-500 mt-1 block">
-                {closedTickets.length > 0 
-                  ? `${Math.round((closedTickets.filter(t => t.escalationLevel !== 'Shopfloor (Lvl 1)').length / closedTickets.length) * 100)}%`
+                {tickets.filter(t => t.status === 'Geschlossen').length > 0 
+                  ? `${Math.round((tickets.filter(t => t.status === 'Geschlossen' && t.escalationLevel !== 'Shopfloor (Lvl 1)').length / tickets.filter(t => t.status === 'Geschlossen').length) * 100)}%`
                   : '0%'}
               </span>
             </div>
           </div>
 
+          {/* NEU: Live-Suchfilter für die Knowledge Base */}
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">IKOS Unternehmensgedächtnis (Archiv)</h2>
+              <p className="text-[11px] text-slate-500">Echtzeit-Suche im kollektiven Fabrikwissen</p>
+            </div>
+            <div className="w-full sm:w-72 relative">
+              <input 
+                type="text"
+                placeholder="🔍 Nach ID, Maschine, Ursache oder Wissen suchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full text-xs bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 placeholder-slate-500"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+          
           {/* Historic Knowledge Base Table */}
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">IKOS Unternehmensgedächtnis (Archiv)</h2>
