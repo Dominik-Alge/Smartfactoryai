@@ -313,6 +313,7 @@ export default function ActionEngine() {
                       ))}
                     </div>
 
+                    {/* SUCHEN UND ERSETZEN: */}
                     <form onSubmit={handleAddTask} className="space-y-2 border-t border-slate-800 pt-3">
                       <input 
                         type="text" 
@@ -321,33 +322,37 @@ export default function ActionEngine() {
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none focus:border-blue-500"
                       />
-                      <select 
-                        value={newTaskOwner}
-                        onChange={(e) => setNewTaskOwner(e.target.value)}
-                        className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none w-full"
-                      >
-                        {/* Technische Bereiche */}
-                        <option value="Instandhaltung">Instandhaltung (Mechanik/Elektrik)</option>
-                        <option value="Prozesstechnik">Prozesstechnik / CAM</option>
-                        <option value="Werkzeugbau">Werkzeugbau / Betriebsmittel</option>
+                      
+                      {/* Wir packen select und button wieder in eine schöne Flexbox nebeneinander */}
+                      <div className="flex gap-2">
+                        <select 
+                          value={newTaskOwner}
+                          onChange={(e) => setNewTaskOwner(e.target.value)}
+                          className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none w-full"
+                        >
+                          {/* Technische Bereiche */}
+                          <option value="Instandhaltung">Instandhaltung (Mechanik/Elektrik)</option>
+                          <option value="Prozesstechnik">Prozesstechnik / CAM</option>
+                          <option value="Werkzeugbau">Werkzeugbau / Betriebsmittel</option>
+                          
+                          {/* Führung & Steuerung */}
+                          <option value="Schichtleiter">Schichtleiter</option>
+                          <option value="Produktionsleitung">Produktionsleitung</option>
+                          <option value="AVOR / KAIZEN">AVOR / KAIZEN / KVP</option>
+                          
+                          {/* Logistik & Qualität */}
+                          <option value="Qualitätssicherung">Qualitätssicherung (QS)</option>
+                          <option value="Logistik / Lager">Logistik / Lager / Disposition</option>
+                          <option value="Einkauf / Material">Einkauf / Materialversorgung</option>
+                          
+                          {/* Infrastruktur */}
+                          <option value="IT / Shopfloor-Support">IT / Shopfloor-Support</option>
+                        </select>
                         
-                        {/* Führung & Steuerung */}
-                        <option value="Schichtleiter">Schichtleiter</option>
-                        <option value="Produktionsleitung">Produktionsleitung</option>
-                        <option value="AVOR / KAIZEN">AVOR / KAIZEN / KVP</option>
-                        
-                        {/* Logistik & Qualität */}
-                        <option value="Qualitätssicherung">Qualitätssicherung (QS)</option>
-                        <option value="Logistik / Lager">Logistik / Lager / Disposition</option>
-                        <option value="Einkauf / Material">Einkauf / Materialversorgung</option>
-                        
-                        {/* Infrastruktur */}
-                        <option value="IT / Shopfloor-Support">IT / Shopfloor-Support</option>
-                      </select>
                         <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded transition-colors whitespace-nowrap">
                           + Zuweisen
                         </button>
-                      </div>
+                      </div> {/* Dieses div schliesst nun sauber das flex-Layout ab! */}
                     </form>
                   </div>
 
