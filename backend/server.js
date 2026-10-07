@@ -331,6 +331,82 @@ app.post('/api/ticket/:id/escalate', (req, res) => {
   res.json(ticket);
 });
 
+// 4b. Ticket eine Ebene de-eskalieren (Eskalationsstufe zurücknehmen)
+app.post('/api/ticket/:id/de-escalate', (req, res) => {
+  const { id } = req.params;
+  const data = loadData();
+
+  const ticket = data._actions?.[id];
+  if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
+
+  const levels = ["Shopfloor (Lvl 1)", "Schichtleitung (Lvl 2)", "Produktionsleitung (Lvl 3)", "Werksleitung (Lvl 4)"];
+  const currentIdx = levels.indexOf(ticket.escalationLevel);
+
+  // Wenn wir über Lvl 1 sind, können wir eine Stufe zurückgehen
+  if (currentIdx > 0) {
+    ticket.escalationLevel = levels[currentIdx - 1];
+  }
+
+  saveData(data);
+  res.json(ticket);
+});
+Use code with caution.
+
+Was wir damit gelöst haben:
+
+• Umfassende Zuweisung: Du deckst jetzt von der IT über den Werkzeugbau bis zum Einkauf jede Abteilung in der Fabrik ab.
+• Volle Fehlerkontrolle: Sollte ein Meister einmal zu oft auf „Eskalieren“ geklickt haben, lässt sich das Ticket jetzt flexibel wieder auf ein niedrigeres Level (z. B. zurück zur Schichtleitung) setzen.
+Wenn du diese Updates einspielst und pushst, ist das System maximal flexibel. Sollen wir im nächsten Schritt die Tabelle im Archiv noch um eine Spalte erweitern, damit man dort rückwirkend sieht, welche Abteilung den Fall final gelöst hat?
+
+wo im code ist der Butteon also das letzte Trigger Escalation ich finde ihn grad nicht in der ActionEngine.jsx
+
+Der Button befindet sich im oberen Drittel des Layouts der Detailansicht (auf der rechten Seite).
+Suche in deiner ActionEngine.jsx nach dem Text Eskalationsstufe oder nach dem Begriff triggerEscalation. Du wirst auf einen Block stoßen, der exakt so aussieht (ca. Zeile 110–130, je nachdem, wie viel Platz deine Komponente hat):
+jsx
+<div className="text-right">
+  <span className="block text-[10px] uppercase font-bold text-slate-500">Eskalationsstufe</span>
+  <span className="text-sm font-bold text-red-400 block bg-red-950/80 px-2 py-1 rounded border border-red-900 mt-1">
+    {selectedTicket.escalationLevel}
+  </span>
+  <button 
+    onClick={triggerEscalation} 
+    className="mt-2 text-[10px] bg-slate-700 hover:bg-red-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
+  >
+    $\rightarrow$ Eine Ebene eskalieren
+  </button>
+</div>
+Use code with caution.
+
+🛠️ Das musst du tun:
+
+Ersetze den <button>-Teil direkt unter </span> durch die zwei neuen Buttons. Der gesamte Block sieht dann fertig umgebaut so aus:
+jsx
+<div className="text-right">
+  <span className="block text-[10px] uppercase font-bold text-slate-500">Eskalationsstufe</span>
+  <span className="text-sm font-bold text-red-400 block bg-red-950/80 px-2 py-1 rounded border border-red-900 mt-1">
+    {selectedTicket.escalationLevel}
+  </span>
+  
+  {/* NEU: Die beiden Buttons nebeneinander für hoch und runter */}
+  <div className="flex gap-2 justify-end mt-2">
+    <button 
+      onClick={triggerDeEscalation} 
+      className="text-[10px] bg-slate-700 hover:bg-emerald-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
+    >
+      &larr; Ebene runter
+    </button>
+    <button 
+      onClick={triggerEscalation} 
+      className="text-[10px] bg-slate-700 hover:bg-red-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
+    >
+      &rarr; Ebene hoch
+    </button>
+  </div>
+</div>
+Use code with caution.
+Hast du die Stelle gefunden und konntest die Buttons erfolgreich austauschen? Funktioniert das De-Eskalieren jetzt direkt im Browser, sobald du draufklickst?
+As
+
 app.post('/api/ticket/:id/close', (req, res) => {
   const { id } = req.params;
   const { cause, lessonsLearned } = req.body;
