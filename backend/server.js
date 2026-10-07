@@ -1,3 +1,16 @@
+// =========================================================================
+// DIAGNOSE-TOOL (Muss ganz oben stehen, um versteckte Fehler abzufangen!)
+// =========================================================================
+process.on('uncaughtException', (err) => {
+  console.error('🔥 KRITISCHER FEHLER (Uncaught Exception):', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ UNBEHANDELTER PROMISE-ABBRUCH:', reason);
+});
+
 // backend/server.js - TEIL 1
 import express from 'express';
 import cors from 'cors';
