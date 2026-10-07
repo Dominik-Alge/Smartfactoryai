@@ -346,6 +346,7 @@ export default function App() {
           machines={panelData.machines}
           criteria={panelData.criteria}
           currentPanelName={panelData.name}
+          historyLog={panelData.historyLog}
           onCellClick={handleCellClick}
           onAddMachine={handleAddMachine}
           onAddCriterion={handleAddCriterion}
