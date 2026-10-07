@@ -47,7 +47,7 @@ Auf dem Zielserver muss **Docker** und **Docker Compose** installiert sein.
    `http://<SERVER-IP>:10000`
 
 ### 💾 Datensicherheit & Backup
-Docker erstellt beim ersten Start automatisch eine Datei namens `shopfloor_storage.json` im Unterordner `./shopfloor_data/`. 
+Docker erstellt beim ersten Start automatisch einen Unterordner namens ./shopfloor_data/, in welchem das Backend die Datei shopfloor_storage.json anlegt. 
 - Hierin liegt die gesamte Datenbanklogik (Maschinenstati, Notizen und Konfigurationen).
 - Diese Datei überlebt jeden Container-Neustart und jedes Software-Update.
 - **Backup:** Für die tägliche Datensicherung muss die IT lediglich den Ordner `./shopfloor_data/` sichern.
