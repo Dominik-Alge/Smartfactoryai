@@ -96,6 +96,16 @@ export default function ActionEngine() {
       alert(err.message);
     }
   };
+  
+  const triggerDeEscalation = async () => {
+    if (!selectedTicket) return;
+    try {
+      await fetch(`${API_URL}/api/ticket/${selectedTicket.id}/de-escalate`, { method: 'POST' });
+      await fetchTickets();
+    } catch (err) {
+      alert('De-Eskalation fehlgeschlagen');
+    }
+  };
 
   // 5. KVP / 8D abschliessen und Ticket archivieren (Kreislauf schliessen)
   const submitKvpAndClose = async (e) => {
@@ -225,16 +235,18 @@ export default function ActionEngine() {
                     <h2 className="text-xl font-bold text-white mt-2">{selectedTicket.title}</h2>
                     <p className="text-xs text-slate-400 mt-0.5">Asset-ID: Maschine {selectedTicket.machineId}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="block text-[10px] uppercase font-bold text-slate-500">Eskalationsstufe</span>
-                    <span className="text-sm font-bold text-red-400 block bg-red-950/80 px-2 py-1 rounded border border-red-900 mt-1">
-                      {selectedTicket.escalationLevel}
-                    </span>
+                  <div className="flex gap-2 justify-end mt-2">
+                    <button 
+                      onClick={triggerDeEscalation} 
+                      className="text-[10px] bg-slate-700 hover:bg-emerald-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
+                    >
+                      &larr; Ebene runter
+                    </button>
                     <button 
                       onClick={triggerEscalation} 
-                      className="mt-2 text-[10px] bg-slate-700 hover:bg-red-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
+                      className="text-[10px] bg-slate-700 hover:bg-red-800 hover:text-white text-slate-300 px-2 py-1 rounded transition-colors font-mono"
                     >
-                      &rarr; Eine Ebene eskalieren
+                      &rarr; Ebene hoch eskalieren
                     </button>
                   </div>
                 </div>
@@ -309,17 +321,29 @@ export default function ActionEngine() {
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none focus:border-blue-500"
                       />
-                      <div className="flex gap-2">
-                        <select 
-                          value={newTaskOwner}
-                          onChange={(e) => setNewTaskOwner(e.target.value)}
-                          className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none w-full"
-                        >
-                          <option value="Instandhaltung">Instandhaltung</option>
-                          <option value="Schichtleiter">Schichtleiter</option>
-                          <option value="Qualitätssicherung">Qualitätssicherung</option>
-                          <option value="Prozesstechnik">Prozesstechnik</option>
-                        </select>
+                      <select 
+                        value={newTaskOwner}
+                        onChange={(e) => setNewTaskOwner(e.target.value)}
+                        className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-white focus:outline-none w-full"
+                      >
+                        {/* Technische Bereiche */}
+                        <option value="Instandhaltung">Instandhaltung (Mechanik/Elektrik)</option>
+                        <option value="Prozesstechnik">Prozesstechnik / CAM</option>
+                        <option value="Werkzeugbau">Werkzeugbau / Betriebsmittel</option>
+                        
+                        {/* Führung & Steuerung */}
+                        <option value="Schichtleiter">Schichtleiter</option>
+                        <option value="Produktionsleitung">Produktionsleitung</option>
+                        <option value="AVOR / KAIZEN">AVOR / KAIZEN / KVP</option>
+                        
+                        {/* Logistik & Qualität */}
+                        <option value="Qualitätssicherung">Qualitätssicherung (QS)</option>
+                        <option value="Logistik / Lager">Logistik / Lager / Disposition</option>
+                        <option value="Einkauf / Material">Einkauf / Materialversorgung</option>
+                        
+                        {/* Infrastruktur */}
+                        <option value="IT / Shopfloor-Support">IT / Shopfloor-Support</option>
+                      </select>
                         <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded transition-colors whitespace-nowrap">
                           + Zuweisen
                         </button>
