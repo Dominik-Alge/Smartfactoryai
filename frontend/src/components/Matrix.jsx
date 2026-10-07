@@ -182,7 +182,7 @@ export default function ShopfloorMatrix({
                         />
                       
                         {/* ⏱️ Inline-Verlaufswarnungen für ALLE Events der letzten 24h */}
-                        {showHistory && cellHistoryEvents.length > 0 && !isRed && (
+                        {showHistory && cellHistoryEvents.length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
                             {cellHistoryEvents.map((event, idx) => (
                               <div 
