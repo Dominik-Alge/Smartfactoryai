@@ -68,11 +68,18 @@ export default function ShopfloorMatrix({
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button 
             type="button"
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => {
+              alert(
+                "⏱️ Feature-Hinweis:\n\n" +
+                "Die 24h-Verlaufspunkte befinden sich aktuell in der finalen " +
+                "Qualitätssicherung für den Server-Betrieb.\n\n" +
+                "Dieses Modul wird mit dem nächsten Update freigeschaltet!"
+              );
+            }}
             style={{
               padding: '8px 14px',
-              backgroundColor: showHistory ? '#f1f5f9' : '#ffffff',
-              color: showHistory ? '#0f172a' : '#64748b',
+              backgroundColor: '#ffffff',
+              color: '#64748b',
               border: '1px solid #cbd5e1',
               borderRadius: '10px',
               fontSize: '13px',
@@ -80,15 +87,15 @@ export default function ShopfloorMatrix({
               cursor: 'pointer'
             }}
           >
-            {showHistory ? '⏱️ Verlaufspunkte ausblenden' : '⏱️ Verlaufspunkte einblenden'}
+            ⏱️ Verlaufspunkte einblenden
           </button>
           
           <span style={{ fontSize: '12px', backgroundColor: '#fef3c7', color: '#d97706', padding: '6px 14px', borderRadius: '9999px', fontWeight: '600', border: '1px solid #fde68a' }}>
             Shopfloor-Modus
           </span>
         </div>
-      </div>
-            {/* Haupttabelle */}
+
+      {/* Haupttabelle */}
       <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', overflowX: 'auto', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }}>
         <table style={{ borderCollapse: 'collapse', margin: '0', width: '100%', tableLayout: 'fixed' }}>
           <thead>
