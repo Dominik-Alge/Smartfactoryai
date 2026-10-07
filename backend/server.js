@@ -255,9 +255,8 @@ app.post('/api/panel/:id/status', async (req, res) => {
   if (status === 'red' && previousStatus !== 'red') {
     if (!data._actions) data._actions = {};
 
-    // Nutze deinen offiziell bewilligten Service aus actionService.js
+    // Erzeuge das Ticket-Basisobjekt über deinen Service
     const actionTicket = createActionObject({
-      machineId: machineId,
       title: `${criterion}: ${note || 'Störung gemeldet'}`,
       status: "Analyse",
       escalationLevel: "Shopfloor (Lvl 1)",
@@ -265,6 +264,20 @@ app.post('/api/panel/:id/status', async (req, res) => {
       cause: "",
       lessonsLearned: ""
     });
+
+    // 🎯 DATEN-INJEKTION: Hier verankern wir alle Daten aus Ebene 1 bombenfest im JSON
+    actionTicket.id = generateActionId(data);
+    actionTicket.machineId = String(machineId);   // Speichert z.B. "13503"
+    actionTicket.criterion = String(criterion);   // Speichert z.B. "DISPO" oder "Qualität"
+    
+    data._actions[actionTicket.id] = actionTicket;
+
+    sendStatusAlert(machineId, criterion, note, author);
+  }
+
+  saveData(data);
+  res.json({ success: true, panel });
+});
 
     actionTicket.id = generateActionId(data);
     data._actions[actionTicket.id] = actionTicket;
