@@ -1,5 +1,6 @@
 # FactoryAI - Shopfloor Management Panel
 
+
 Dieses Projekt ist eine digitale Shopfloor-Maske zur Online-Erfassung von Maschinenstati, Kriterienübersichten (Ampelsystem) und zur Bündelung von Notizen für Gruppentreffen und Schichtübergaben.
 
 ## 🚀 Architektur & Struktur (Layer-System)
