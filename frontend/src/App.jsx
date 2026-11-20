@@ -1,0 +1,592 @@
+import React, { useState, useEffect } from 'react';
+import Matrix from './components/Matrix';
+import Modal from './components/Modal';
+import SupervisorView from './components/SupervisorView';
+import CockpitView from './components/CockpitView'; // Ergänzt am 18.11.2026
+import ActionEngine from './ActionEngine';
+import DeleteConfirmModal from './components/DeleteConfirmModal'; // Ergänzt am 18.11.2026
+import PinModal from './components/PinModal'; // Ergänzt am 18.11.2026
+import ToolDrawer from './components/ToolDrawer'; // Ergänzt am 20.11.2026
+import { ensureGlobalStyles } from './escalationUi'; // Ergänzt am 20.11.2026
+
+ensureGlobalStyles();
+
+// Ersetze das alte Skript hiermit (Nutzt das offizielle Play CDN):
+if (!document.getElementById('tailwind-cdn')) {
+  const script = document.createElement('script');
+  script.id = 'tailwind-cdn';
+  script.src = 'https://cdn.tailwindcss.com'; // <-- "cdn." wurde hier hinzugefügt!
+  document.head.appendChild(script);
+}
+
+// const API_URL = `http://${window.location.hostname}:5000`; // Version vom 18.11.2026
+const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+
+const reasonOptions = {
+  Maschine: [
+    "Maschine steht",
+    "Störung Maschine",
+    "Wartung erforderlich"
+  ],
+  Material: [
+    "Material ist nicht vorhanden"
+  ],
+
+  Qualität: [
+    "Qualitätsmangel / Ausschuss"
+  ],
+
+  AVOR: [
+    "Arbeitsplan falsch",
+    "Zeichnung fehlt",
+    "Werkzeugdaten fehlen",
+    "Auftrag unklar"
+  ],
+
+  DISPO: [
+    "Terminproblem",
+    "Priorität ändern",
+    "Expressauftrag blockiert"
+  ],
+
+  Personal: [
+    "Personal ungeplant / kurzfristiger Ausfall"
+  ],
+
+  Werkzeug: [
+    "Werkzeug nicht vorhanden",
+    "THM-Programm nicht vorhanden",
+    "Messstrategie definieren"
+  ],
+
+  Neuteil: [
+    "Einfahren verzögert Produktivität"
+  ],
+
+  Messmittel: [
+    "Messmittel nicht verfügbar",
+    "Messmittel defekt"
+  ],
+
+  Programme: [
+    "TopSolid-Programmierer fehlt",
+    "Vericut-Programmierung ausstehend"
+  ],
+
+  Messen: [
+    "Messen nicht angemeldet",
+    "Messen hat trotz anmeldung keine Kapazität"
+  ],
+
+  Vorrichtung: [
+    "Vorrichtung nicht einsatzfähig",
+    "Vorrichtung nicht vorhanden"
+  ],
+
+  "System/Shopfloor": [
+    "Shopfloor Fehler",
+    "Netzwerk Problem"
+    ]
+};
+
+// Die Kriterien heissen im Panel teilweise anders als oben → gleiche Gründe zuordnen (Ergänzt am 20.11.2026)
+reasonOptions["Systemfehler/Shopfloor"] = reasonOptions["System/Shopfloor"];
+reasonOptions["Neuteil 0%"] = reasonOptions["Neuteil"];
+reasonOptions["Messen (anmelden)"] = reasonOptions["Messen"];
+
+export default function App() {
+  const [panels, setPanels] = useState([]); // Liste aller Excel-Mappen
+  const [activePanelId, setActivePanelId] = useState('drehen'); // Aktive Mappe
+  const [panelData, setPanelData] = useState({ name: '', machines: [], criteria: [], cells: {}, historyLog: [], escalations: {} });
+  
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, machineId: '', criterion: '' });
+    const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    targetType: '', // 'panel' | 'machine' | 'criterion'
+    targetId: '',
+    targetName: ''
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showMemory, setShowMemory] = useState(false);
+  const [currentView, setCurrentView] = useState('shopfloor');
+  const [pendingView, setPendingView] = useState(null); // 'cockpit' oder 'action-engine'
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  
+  const handleProtectedView = (targetView) => {
+    if (isUnlocked) {
+      setCurrentView(targetView);
+    } else {
+      setPendingView(targetView);
+    }
+  };
+
+  // 1. Liste aller verfügbaren Mappen (Panels) laden
+  const fetchPanels = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/panels`);
+      if (!response.ok) throw new Error('API-Fehler bei Mappen-Liste');
+      const data = await response.json();
+      setPanels(data);
+      
+      // Falls die aktive Panel-ID nicht in den geladenen Panels existiert, nimm das erste
+      if (data.length > 0 && !data.some(p => p.id === activePanelId)) {
+        setActivePanelId(data[0].id);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Verbindung zum Server fehlgeschlagen.');
+    }
+  };
+
+  // 2. Daten für die aktuell aktive Mappe laden
+  const fetchActivePanelData = async () => {
+    if (!activePanelId) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}`);
+      if (!response.ok) throw new Error('Fehler beim Laden der Panel-Daten');
+      const data = await response.json();
+      setPanelData({
+        name: data.name || '',
+        machines: data.machines || [],
+        criteria: data.criteria || [],
+        cells: data.cells || {},
+        historyLog: data.historyLog || [],
+        escalations: data.escalations || {},
+        cellPanels: data.cellPanels || {}
+      });
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError('Fehler beim Abrufen der Board-Daten.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Lifecycle-Trigger bei App-Start und Mappen-Wechsel
+  useEffect(() => {
+    fetchPanels();
+  }, []);
+
+  useEffect(() => {
+    fetchActivePanelData();
+  }, [activePanelId]);
+
+  // 3. Maschine hinzufügen
+  const handleAddMachine = async (machineId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', type: 'machine', value: machineId })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Hinzufügen der Maschine:", err);
+    }
+  };
+
+  // 4. Kriterium hinzufügen
+  const handleAddCriterion = async (criterionName) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', type: 'criterion', value: criterionName })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Hinzufügen des Kriteriums:", err);
+    }
+  };
+
+    // Maschine verschieben (Links / Rechts)
+  const handleMoveMachine = async (machineId, direction) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'move', type: 'machine', value: machineId, direction })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Verschieben der Maschine:", err);
+    }
+  };
+
+  // Kriterium verschieben (Hoch / Runter)
+  const handleMoveCriterion = async (crit, direction) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'move', type: 'criterion', value: crit, direction })
+      });
+      if (response.ok) fetchActivePanelData();
+    } catch (err) {
+      console.error("Fehler beim Verschieben des Kriteriums:", err);
+    }
+  };
+
+  // Gruppe / Mappe verschieben (Links / Rechts)
+  const handleMovePanel = async (panelId, direction) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panels/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ panelId, direction })
+      });
+      if (response.ok) fetchPanels();
+    } catch (err) {
+      console.error("Fehler beim Verschieben der Gruppe:", err);
+    }
+  };
+
+  // Öffnet das Sicherheits-Popup für Maschine, Kriterium oder Gruppe
+  const handleDeleteMachine = (machineId) => {
+    setDeleteModal({ isOpen: true, targetType: 'machine', targetId: machineId, targetName: `Maschine ${machineId}` });
+  };
+
+  const handleDeleteCriterion = (crit) => {
+    setDeleteModal({ isOpen: true, targetType: 'criterion', targetId: crit, targetName: crit });
+  };
+
+  const handleDeletePanel = (panel) => {
+    setDeleteModal({ isOpen: true, targetType: 'panel', targetId: panel.id, targetName: panel.name || panel.id });
+  };
+
+  // Führt das endgültige Löschen erst aus, nachdem "Löschen" + Kürzel eingegeben wurden
+  const executeConfirmedDelete = async (author) => {
+    const { targetType, targetId } = deleteModal;
+    try {
+      if (targetType === 'panel') {
+        const response = await fetch(`${API_URL}/api/panel/${targetId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ author })
+        });
+        if (response.ok) {
+          await fetchPanels();
+          if (activePanelId === targetId) setActivePanelId('insel_ds');
+        }
+      } else {
+        const response = await fetch(`${API_URL}/api/panel/${activePanelId}/structure`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', type: targetType, value: targetId, author })
+        });
+        if (response.ok) fetchActivePanelData();
+      }
+    } catch (err) {
+      console.error("Fehler beim endgültigen Löschen:", err);
+    } finally {
+      setDeleteModal({ isOpen: false, targetType: '', targetId: '', targetName: '' });
+    }
+  };
+
+  const handleCellClick = (machineId, criterion, explicitPanelId) => {
+    // In der Insel-Sicht DS gehört jede Zelle zu einer echten Gruppe (Fehlerkorrektur 20.11.2026)
+    const panelId = explicitPanelId || panelData.cellPanels?.[`${machineId}-${criterion}`] || activePanelId;
+    setModalConfig({ isOpen: true, machineId, criterion, panelId });
+  };
+
+  // 7. Ampel-Status ändern und Notiz speichern
+  const handleSaveStatus = async (machineId, criterion, status, note, author, machineDown = false) => {
+    try {
+      const targetPanelId = modalConfig.panelId && modalConfig.panelId !== 'insel_ds' ? modalConfig.panelId : activePanelId;
+      const response = await fetch(`${API_URL}/api/panel/${targetPanelId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machineId, criterion, status, note, author, machineDown })
+      });
+
+      if (!response.ok) throw new Error('Speichern fehlgeschlagen');
+
+      fetchActivePanelData(); // UI sofort neu laden
+      setModalConfig({ isOpen: false, machineId: '', criterion: '' }); // Modal schließen
+    } catch (err) {
+      alert("Fehler beim Speichern des Status!");
+      console.error(err);
+    }
+  };
+
+  // Funktion zum Erstellen einer komplett neuen Mappe (Excel-Mappe)
+  const handleCreateNewPanel = async () => {
+    const name = prompt("Name der neuen Produktionsgruppe (z.B. Gruppe Fräsen):");
+    if (!name) return;
+    const id = name.toLowerCase().replace(/[^a-z0-9]/g, ""); // Macht "Gruppe Fräsen" zu "gruppefrasen"
+    
+    try {
+      const response = await fetch(`${API_URL}/api/panel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name })
+      });
+      if (response.ok) {
+        await fetchPanels();
+        setActivePanelId(id);
+      } else {
+        alert("Mappe existiert bereits oder Name ist ungültig.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Schaltet die Ansicht komplett auf Ebene 2 um, falls ausgewählt
+  if (currentView === 'action-engine') {
+    return (
+      <div className="relative">
+        <div className="bg-slate-950 p-3 text-left border-b border-slate-800 flex justify-between items-center px-6">
+          <span className="text-xs font-mono text-slate-500">Shopfloor System v4.3</span>
+          <button 
+            onClick={() => setCurrentView('shopfloor')}
+            className="text-xs font-bold bg-slate-800 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-700 hover:text-white transition-all shadow-sm"
+          >
+            ⬅️ Zurück zum Hauptpanel
+          </button>
+        </div>
+        <ActionEngine />
+        <ToolDrawer apiUrl={API_URL} dark viewName="Action Engine (Ebene 2)" />
+      </div>
+    );
+  }
+    if (currentView === 'cockpit') {
+    return (
+      <>
+        <CockpitView
+          apiUrl={API_URL}
+          panels={panels}
+          onCellClick={(machineId, criterion, panelId) => {
+            if (panelId && panelId !== activePanelId) setActivePanelId(panelId);
+            handleCellClick(machineId, criterion, panelId);
+          }}
+          onAddMachine={handleAddMachine}
+          onAddCriterion={handleAddCriterion}
+          onDeleteMachine={handleDeleteMachine}
+          onDeleteCriterion={handleDeleteCriterion}
+          onCloseView={() => setCurrentView('shopfloor')}
+        />
+        <ToolDrawer apiUrl={API_URL} dark viewName="Shopfloor Cockpit (TV)" />
+        {modalConfig.isOpen && (
+          <Modal
+            isOpen={modalConfig.isOpen}
+            machineId={modalConfig.machineId}
+            criterion={modalConfig.criterion}
+            allCriteria={Object.keys(reasonOptions)}
+            reasons={reasonOptions}
+            currentData={
+              panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`] || {
+                status: 'green',
+                notes: []
+              }
+            }
+            onClose={() => setModalConfig({ isOpen: false, machineId: '', criterion: '' })}
+            onSave={handleSaveStatus}
+          />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div className="bg-slate-50 min-h-screen p-4 md:p-8 font-sans">
+      {/* Header-Leiste */}
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Shopfloor Panel</h1>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+              Developed by Dominik Alge
+            </span>
+          </div>
+          <p className="text-sm font-semibold text-blue-600 mt-1">Ebene: {panelData.name || 'Wird geladen...'}</p>
+        </div>
+
+        {/* DYNAMISCHER VERBINDUNGS-BADGE */}
+        {error && (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Verbindung getrennt
+          </span>
+        )}
+
+        {/* Cockpit & Action Engine Buttons */}
+        {!error && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleProtectedView('cockpit')}
+              className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold px-3 py-1.5 rounded-lg shadow transition-colors flex items-center gap-1"
+            >
+              Shopfloor Cockpit (TV)
+            </button>
+            <button 
+              onClick={() => handleProtectedView('action-engine')}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition-colors flex items-center gap-1"
+            >
+              Action Engine (Ebene 2)
+            </button>
+          </div>
+        )}
+      </div>
+        
+            {/* DYNAMISCHE EXCEL-REGISTERKARTEN (Mappen-Auswahl) */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-gray-200 pb-2">
+        {panels.map((p, idx) => {
+          const isSystemTab = p.id === 'insel_ds';
+          const canMoveLeft = !isSystemTab && idx > 1;
+          const canMoveRight = !isSystemTab && idx < panels.length - 1;
+
+          return (
+            <div
+              key={p.id}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold rounded-t-lg transition border-t border-x -mb-[9px] ${
+                activePanelId === p.id
+                  ? 'bg-white text-blue-600 border-gray-200 shadow-sm z-10'
+                  : 'bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200'
+              }`}
+            >
+              {canMoveLeft && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleMovePanel(p.id, 'left'); }}
+                  className="text-xs px-1 py-0.5 rounded bg-slate-200/70 hover:bg-slate-300 text-slate-700"
+                  title="Gruppe nach links verschieben"
+                >
+                  ←
+                </button>
+              )}
+
+              <button type="button" onClick={() => setActivePanelId(p.id)} className="px-1">
+                {p.name || p.id}
+              </button>
+
+              {canMoveRight && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleMovePanel(p.id, 'right'); }}
+                  className="text-xs px-1 py-0.5 rounded bg-slate-200/70 hover:bg-slate-300 text-slate-700"
+                  title="Gruppe nach rechts verschieben"
+                >
+                  →
+                </button>
+              )}
+
+              {!isSystemTab && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDeletePanel(p); }}
+                  className="ml-1 w-4 h-4 rounded-full bg-red-100 text-red-600 hover:bg-red-600 hover:text-white text-[10px] flex items-center justify-center transition"
+                  title="Gruppe endgültig löschen"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        <button
+          onClick={handleCreateNewPanel}
+          className="px-3 py-1.5 text-xs font-bold bg-gray-200 text-gray-700 hover:bg-slate-700 hover:text-white rounded-lg transition ml-2 shadow-sm relative -top-[4px]"
+        >
+          + Neue Mappe
+        </button>
+      </div>
+
+      {/* Roter Fehlerbalken erscheint NUR, wenn wirklich ein Fehler da ist */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl text-red-800 font-medium text-sm flex items-center gap-2 shadow-sm">
+          ⚠️ {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-12 text-slate-500 font-medium">Lade Panel-Daten...</div>
+      ) : activePanelId === 'insel_ds' ? (
+        /* Wenn die Vorgesetzten-Sicht aktiv ist: Zeige NUR die roten Schadenskarten */
+        <SupervisorView 
+          data={panelData.cells}
+          escalations={panelData.escalations}
+          onCellClick={handleCellClick}
+        />
+      ) : (
+        /* In allen anderen Fällen (Drehen, Fräsen): Deine originale, stabile Tabelle */
+        <Matrix 
+          data={panelData.cells}
+          machines={panelData.machines}
+          criteria={panelData.criteria}
+          currentPanelName={panelData.name}
+          onCellClick={handleCellClick}
+          onAddMachine={handleAddMachine}
+          onAddCriterion={handleAddCriterion}
+          onDeleteMachine={handleDeleteMachine}
+          onDeleteCriterion={handleDeleteCriterion}
+          historyLog={panelData.historyLog}
+          escalations={panelData.escalations}
+          onMoveMachine={handleMoveMachine}
+          onMoveCriterion={handleMoveCriterion}
+
+        />
+      )}
+
+
+      {/* Modal Popup für Status-Wechsel */}
+      {modalConfig.isOpen && (
+        <Modal
+          isOpen={modalConfig.isOpen}
+          machineId={modalConfig.machineId}
+          criterion={modalConfig.criterion}
+          allCriteria={Object.keys(reasonOptions)} 
+          reasons={reasonOptions}                  
+          currentData={
+            panelData.cells[`${modalConfig.machineId}-${modalConfig.criterion}`]
+            || { status: 'green', notes: [] }
+          }
+          onClose={() =>
+            setModalConfig({
+              isOpen: false,
+              machineId: '',
+              criterion: ''
+            })
+          }
+          onSave={handleSaveStatus}
+          // GELÖSCHT: categories={shopfloorCategories} wurde entfernt, da nicht definiert
+        />
+      )}
+
+            <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        targetType={
+          deleteModal.targetType === 'panel'
+            ? 'Gruppe'
+            : deleteModal.targetType === 'machine'
+            ? 'Maschine'
+            : 'Kategorie'
+        }
+        targetName={deleteModal.targetName}
+        onClose={() => setDeleteModal({ isOpen: false, targetType: '', targetId: '', targetName: '' })}
+        onConfirm={executeConfirmedDelete}
+      />
+
+      <ToolDrawer apiUrl={API_URL} viewName={`Shopfloor Panel · ${panelData.name || ''}`} />
+
+            <PinModal
+        isOpen={pendingView !== null}
+        targetName={
+          pendingView === 'cockpit'
+            ? 'Shopfloor Cockpit (TV)'
+            : 'Action Engine (Ebene 2)'
+        }
+        onSuccess={() => {
+          setIsUnlocked(true);
+          setCurrentView(pendingView);
+          setPendingView(null);
+        }}
+        onClose={() => setPendingView(null)}
+      />
+    </div>
+  );
+}
