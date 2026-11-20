@@ -19,19 +19,6 @@ import {
   generateActionId,
   createActionObject
 } from './services/actionService.js';
-import {
-  ESCALATION_LEVELS,
-  levelIndex,
-  levelName,
-  startClock,
-  stopClock,
-  alignClockToLevel,
-  applyAutoEscalation,
-  escalationInfo,
-  findRecurrenceCandidates,
-  findPanelIdForTicket,
-  migrateTickets
-} from './services/escalationService.js'; // Ergänzt am 20.11.2026
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -72,7 +59,7 @@ const defaultData = {
 let memoryCache = null;
 
 function getPanelKeys(data) {
-  return Object.keys(data).filter(key => !key.startsWith('_'));
+  return Object.keys(data).filter(key => key !== '_system' && key !== '_actions');
 }
 
 function cleanOldHistory(panel) {
@@ -99,9 +86,7 @@ function loadData() {
       cleanOldHistory(data[key]);
     });
 
-    // Altdaten bereinigen (Stufennamen, fehlende Felder, Eskalations-Uhr)
     memoryCache = data;
-    if (migrateTickets(data)) saveData(data);
     return data;
   } catch (err) {
     console.error("Fehler beim Laden, RAM-Fallback genutzt:", err);
@@ -109,60 +94,13 @@ function loadData() {
   }
 }
 
-// Sicheres Speichern: erst in eine Temp-Datei schreiben, dann umbenennen.
-// So bleibt die JSON-Datei auch bei einem Absturz mitten im Schreiben intakt.
-// Zusätzlich wird pro Tag eine Sicherungskopie angelegt (shopfloor_storage.backup-JJJJ-MM-TT.json).
 function saveData(data) {
   memoryCache = data;
-  const json = JSON.stringify(data, null, 2);
-  const tmpFile = `${STORAGE_FILE}.tmp`;
   try {
-    fs.writeFileSync(tmpFile, json);
-    fs.renameSync(tmpFile, STORAGE_FILE);
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(data, null, 2));
   } catch (err) {
-    console.error("Atomares Speichern fehlgeschlagen, schreibe direkt:", err.message);
-    try {
-      fs.writeFileSync(STORAGE_FILE, json);
-    } catch (err2) {
-      console.error("Schreibfehler auf Festplatte:", err2);
-    }
+    console.error("Schreibfehler auf Festplatte:", err);
   }
-  try {
-    const d = new Date();
-    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const backupFile = path.join(STORAGE_DIR, `shopfloor_storage.backup-${stamp}.json`);
-    if (!fs.existsSync(backupFile)) fs.writeFileSync(backupFile, json);
-  } catch (err) {
-    console.error("Tages-Backup fehlgeschlagen:", err.message);
-  }
-}
-
-// Eskalations-Markierungen für eine Gruppe: { "13503-Qualität": { levelIndex, level, machineDown, ticketId } }
-function buildEscalationMap(data, panelIds) {
-  const map = {};
-  const ids = new Set(panelIds);
-  Object.values(data._actions || {}).forEach((t) => {
-    if (t.status === 'Geschlossen') return;
-    const pid = findPanelIdForTicket(data, t);
-    if (!pid || !ids.has(pid)) return;
-    const key = `${t.machineId}-${t.criterion}`;
-    const idx = levelIndex(t.escalationLevel);
-    if (!map[key] || map[key].levelIndex < idx) {
-      map[key] = {
-        levelIndex: idx,
-        level: t.escalationLevel,
-        machineDown: !!t.machineDown,
-        ticketId: t.id,
-        autoEscalated: !!t.autoEscalated,
-        isRecurrence: t.recurrence?.decision === 'same'
-      };
-    }
-  });
-  return map;
-}
-
-function runEscalationCheck(data) {
-  if (applyAutoEscalation(data, Date.now())) saveData(data);
 }
 
 const criterionContacts = {
@@ -226,7 +164,9 @@ function logAudit(data, action, targetType, targetName, panelName, author) {
 app.get('/api/panels', (req, res) => {
   const data = loadData();
   // Filtert auch _auditLog heraus, damit es nicht als Tab erscheint
-  const keys = getPanelKeys(data);
+  const keys = Object.keys(data).filter(
+    key => key !== '_system' && key !== '_actions' && key !== '_auditLog'
+  );
   const list = keys.map(key => ({ id: key, name: data[key].name }));
   list.unshift({ id: 'insel_ds', name: ' Insel-Sicht DS (Vorgesetzte)' });
   res.json(list);
@@ -282,10 +222,8 @@ app.delete('/api/panel/:id', (req, res) => {
 
 app.get('/api/panel/:id', (req, res) => {
   const data = loadData();
-  runEscalationCheck(data);
   if (req.params.id === 'insel_ds') {
     const aggregatedCells = {};
-    const cellPanels = {};
     const keys = Object.keys(data).filter(
       key => key !== '_system' && key !== '_actions' && key !== '_auditLog'
     );
@@ -295,7 +233,6 @@ app.get('/api/panel/:id', (req, res) => {
         Object.keys(panel.cells).forEach((cellKey) => {
           if (panel.cells[cellKey]?.status === 'red') {
             aggregatedCells[cellKey] = panel.cells[cellKey];
-            cellPanels[cellKey] = panelKey; // Ergänzt am 20.11.2026: zu welcher Gruppe gehört die Zelle?
           }
         });
       }
@@ -305,16 +242,14 @@ app.get('/api/panel/:id', (req, res) => {
       machines: [],
       criteria: [],
       cells: aggregatedCells,
-      historyLog: [],
-      cellPanels,
-      escalations: buildEscalationMap(data, keys)
+      historyLog: []
     });
   }
 
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
   if (!panel.historyLog) panel.historyLog = [];
-  res.json({ ...panel, escalations: buildEscalationMap(data, [req.params.id]) });
+  res.json(panel);
 });
 
 app.post('/api/panel', (req, res) => {
@@ -406,14 +341,60 @@ app.post('/api/panel/:id/structure', (req, res) => {
   res.json({ success: true, panel });
 });
 
+app.post('/api/panel', (req, res) => {
+  const { id, name } = req.body;
+  if (!id || !name) return res.status(400).json({ error: "id und name erforderlich" });
+  
+  const data = loadData();
+  if (data[id]) return res.status(400).json({ error: "ID existiert bereits" });
+
+  data[id] = { name, machines: [], criteria: [], cells: {}, historyLog: [] };
+  saveData(data);
+  res.json({ success: true, panels: data });
+});
+
+app.post('/api/panel/:id/structure', (req, res) => {
+  const data = loadData();
+  const panel = data[req.params.id];
+  if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
+
+  const { action, type, value } = req.body;
+  const timeString = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' });
+
+  if (type === 'machine') {
+    if (action === 'add' && !panel.machines.includes(value)) panel.machines.push(value);
+    if (action === 'delete') {
+      panel.criteria.forEach(crit => {
+        if (panel.cells[`${value}-${crit}`]?.status === 'red') {
+          panel.historyLog.push({ type: 'Maschine', name: value, time: timeString, timestampMs: Date.now(), note: `Mit ungelöstem Problem im Kriterium "${crit}" entfernt` });
+        }
+      });
+      panel.machines = panel.machines.filter(m => m !== value);
+      Object.keys(panel.cells).forEach(k => { if (k.startsWith(`${value}-`)) delete panel.cells[k]; });
+    }
+  } else if (type === 'criterion') {
+    if (action === 'add' && !panel.criteria.includes(value)) panel.criteria.push(value);
+    if (action === 'delete') {
+      panel.machines.forEach(m => {
+        if (panel.cells[`${m}-${value}`]?.status === 'red') {
+          panel.historyLog.push({ type: 'Kategorie', name: value, time: timeString, timestampMs: Date.now(), note: `Mit ungelöstem Problem auf Maschine "${m}" entfernt` });
+        }
+      });
+      panel.criteria = panel.criteria.filter(c => c !== value);
+      Object.keys(panel.cells).forEach(k => { if (k.endsWith(`-${value}`)) delete panel.cells[k]; });
+    }
+  }
+
+  saveData(data);
+  res.json({ success: true, panel });
+});
+
 app.post('/api/panel/:id/status', async (req, res) => {
   const data = loadData();
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
 
-  const { machineId, criterion, status, note, author, machineDown } = req.body;
-  const nowMs = Date.now();
-  const nowIso = new Date(nowMs).toISOString();
+  const { machineId, criterion, status, note, author } = req.body;
   const cellKey = `${machineId}-${criterion}`;
   const previousStatus = panel.cells[cellKey] ? panel.cells[cellKey].status : "green";
 
@@ -422,36 +403,6 @@ app.post('/api/panel/:id/status', async (req, res) => {
   }
 
   panel.cells[cellKey].status = status;
-  if (status === 'red' && typeof machineDown === 'boolean') panel.cells[cellKey].machineDown = machineDown;
-  if (status === 'green') panel.cells[cellKey].machineDown = false;
-
-  // Offene Tickets dieser Zelle (Maschine + Kriterium)
-  const openTicketsOfCell = Object.values(data._actions || {}).filter(
-    (t) => t.status !== 'Geschlossen' && String(t.machineId) === String(machineId) && t.criterion === String(criterion)
-  );
-
-  // Rot → Grün: Störung behoben, Eskalations-Uhr anhalten (KVP läuft separat weiter)
-  if (status === 'green' && previousStatus === 'red') {
-    openTicketsOfCell.forEach((t) => {
-      stopClock(t, nowMs);
-      if (!t.resolvedAt) t.resolvedAt = nowIso;
-      t.updatedAt = nowIso;
-      t.history = t.history || [];
-      t.history.push({ event: 'resolved_on_shopfloor', user: author || 'Mitarbeiter', timestamp: nowIso, details: 'Störung am Shopfloor behoben (Zelle grün)' });
-    });
-  }
-
-  // Bleibt rot: "Maschine steht" kann nachträglich geändert werden
-  if (status === 'red' && previousStatus === 'red' && typeof machineDown === 'boolean') {
-    openTicketsOfCell.forEach((t) => {
-      if (!!t.machineDown !== machineDown) {
-        t.machineDown = machineDown;
-        t.updatedAt = nowIso;
-        t.history = t.history || [];
-        t.history.push({ event: 'machine_down_changed', user: author || 'Mitarbeiter', timestamp: nowIso, details: machineDown ? 'Maschine steht' : 'Maschine läuft wieder (eingeschränkt)' });
-      }
-    });
-  }
 
   if (note && note.trim() !== "") {
     panel.cells[cellKey].notes.push({
@@ -465,23 +416,15 @@ app.post('/api/panel/:id/status', async (req, res) => {
   if (status === 'red' && previousStatus !== 'red') {
     if (!data._actions) data._actions = {};
 
-    // Erzeuge das Ticket-Basisobjekt über deinen Service.
-    // Hinweis: createActionObject übernimmt nur Titel/Maschine/Kriterium –
-    // Status, Stufe usw. werden deshalb unten explizit gesetzt (Fehlerkorrektur 20.11.2026).
+    // Erzeuge das Ticket-Basisobjekt über deinen Service
     const actionTicket = createActionObject({
       title: `${criterion}: ${note || 'Störung gemeldet'}`,
-      panelId: String(req.params.id),
-      machineId: String(machineId),
-      criterion: String(criterion),
-      creator: author || 'Mitarbeiter'
+      status: "Analyse",
+      escalationLevel: "Shopfloor (Lvl 1)",
+      tasks: [],
+      cause: "",
+      lessonsLearned: ""
     });
-    actionTicket.status = 'Analyse';
-    actionTicket.escalationLevel = ESCALATION_LEVELS[0];
-    actionTicket.tasks = [];
-    actionTicket.cause = '';
-    actionTicket.lessonsLearned = '';
-    actionTicket.machineDown = machineDown === true;
-    startClock(actionTicket, nowMs);
 
     // 🎯 DATEN-INJEKTION: Hier verankern wir alle Daten aus Ebene 1 bombenfest im JSON
     actionTicket.id = generateActionId(data);
@@ -489,76 +432,18 @@ app.post('/api/panel/:id/status', async (req, res) => {
     actionTicket.machineId = String(machineId);   // Speichert z.B. "13503"
     actionTicket.criterion = String(criterion);   // Speichert z.B. "DISPO" oder "Qualität"
     
-    // Wiederholfall? Frühere Fälle gleicher Maschine + Kriterium merken
-    const candidates = findRecurrenceCandidates(data, actionTicket, nowMs);
-    if (candidates.length) {
-      actionTicket.recurrence = { candidates, decision: null };
-    }
-
     data._actions[actionTicket.id] = actionTicket;
     sendStatusAlert(machineId, criterion, note, author);
   }
 
-  applyAutoEscalation(data, nowMs);
   saveData(data);
-  res.json({ success: true, panel: { ...panel, escalations: buildEscalationMap(data, [req.params.id]) } });
+  res.json({ success: true, panel });
 });
 
 // --- ACTION ENGINE API ---
 app.get('/api/tickets', (req, res) => {
   const data = loadData();
-  runEscalationCheck(data);
-  const nowMs = Date.now();
-  const list = Object.values(data._actions || {}).map((t) => {
-    const pid = findPanelIdForTicket(data, t);
-    return {
-      ...t,
-      panelId: pid,
-      panelName: pid ? data[pid]?.name || pid : null,
-      escalationInfo: escalationInfo(t, nowMs)
-    };
-  });
-  res.json(list);
-});
-
-// Wiederholfall beantworten: "Ist das derselbe Fall?"
-app.post('/api/ticket/:id/recurrence', (req, res) => {
-  const { id } = req.params;
-  const { decision, relatedId, whyFailed, nextStep, author } = req.body;
-  const data = loadData();
-  const ticket = data._actions?.[id];
-  if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
-  if (decision !== 'same' && decision !== 'different') {
-    return res.status(400).json({ error: 'decision muss "same" oder "different" sein' });
-  }
-  if (decision === 'same' && (!String(whyFailed || '').trim() || !String(nextStep || '').trim())) {
-    return res.status(400).json({ error: 'Bitte beantworten: Warum hat die Massnahme nicht gegriffen, und was machen wir jetzt anders?' });
-  }
-  const nowIso = new Date().toISOString();
-  ticket.recurrence = {
-    ...(ticket.recurrence || { candidates: [] }),
-    decision,
-    relatedId: decision === 'same' ? relatedId || ticket.recurrence?.candidates?.[0]?.id || null : null,
-    whyFailed: decision === 'same' ? String(whyFailed).trim() : '',
-    nextStep: decision === 'same' ? String(nextStep).trim() : '',
-    decidedAt: nowIso,
-    decidedBy: author || 'Unbekannt'
-  };
-  ticket.history = ticket.history || [];
-  ticket.history.push({
-    event: 'recurrence_decided',
-    user: author || 'Unbekannt',
-    timestamp: nowIso,
-    details: decision === 'same' ? `Wiederholfall von ${ticket.recurrence.relatedId}` : 'Kein Wiederholfall'
-  });
-  // Beim Vorgängerfall vermerken, dass sich das Problem wiederholt hat
-  const related = ticket.recurrence.relatedId ? data._actions[ticket.recurrence.relatedId] : null;
-  if (related) {
-    related.recurredBy = Array.from(new Set([...(related.recurredBy || []), ticket.id]));
-  }
-  ticket.updatedAt = nowIso;
-  saveData(data);
-  res.json(ticket);
+  res.json(Object.values(data._actions || {}));
 });
 
 app.post('/api/ticket/:id/task', (req, res) => {
@@ -599,15 +484,9 @@ app.post('/api/ticket/:id/escalate', (req, res) => {
   const ticket = data._actions?.[id];
   if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
 
-  const currentIdx = levelIndex(ticket.escalationLevel);
-  if (currentIdx < ESCALATION_LEVELS.length - 1) {
-    const nowIso = new Date().toISOString();
-    ticket.escalationLevel = levelName(currentIdx + 1);
-    ticket.escalatedAt = nowIso;
-    ticket.updatedAt = nowIso;
-    ticket.history = ticket.history || [];
-    ticket.history.push({ event: 'escalated', user: req.body?.author || 'Manuell', timestamp: nowIso, details: `Manuell eskaliert auf ${ticket.escalationLevel}` });
-  }
+  const levels = ["Shopfloor (Lvl 1)", "Schichtleitung (Lvl 2)", "Produktionsleitung (Lvl 3)", "Werksleitung (Lvl 4)"];
+  const currentIdx = levels.indexOf(ticket.escalationLevel);
+  if (currentIdx < levels.length - 1) ticket.escalationLevel = levels[currentIdx + 1];
 
   saveData(data);
   res.json(ticket);
@@ -620,18 +499,12 @@ app.post('/api/ticket/:id/de-escalate', (req, res) => {
   const ticket = data._actions?.[id];
   if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
 
-  const currentIdx = levelIndex(ticket.escalationLevel);
+  const levels = ["Shopfloor (Lvl 1)", "Schichtleitung (Lvl 2)", "Produktionsleitung (Lvl 3)", "Werksleitung (Lvl 4)"];
+  const currentIdx = levels.indexOf(ticket.escalationLevel);
 
-  // Wenn wir über Lvl 1 sind, können wir eine Stufe zurückgehen.
-  // Die Automatik zählt danach ab der neuen Stufe weiter (statt sofort wieder hochzustufen).
+  // Wenn wir über Lvl 1 sind, können wir eine Stufe zurückgehen
   if (currentIdx > 0) {
-    const nowMs = Date.now();
-    const nowIso = new Date(nowMs).toISOString();
-    ticket.escalationLevel = levelName(currentIdx - 1);
-    alignClockToLevel(ticket, currentIdx - 1, nowMs);
-    ticket.updatedAt = nowIso;
-    ticket.history = ticket.history || [];
-    ticket.history.push({ event: 'de_escalated', user: req.body?.author || 'Manuell', timestamp: nowIso, details: `Zurückgestuft auf ${ticket.escalationLevel}` });
+    ticket.escalationLevel = levels[currentIdx - 1];
   }
 
   saveData(data);
@@ -647,22 +520,10 @@ app.post('/api/ticket/:id/close', (req, res) => {
   const ticket = data._actions?.[id];
   if (!ticket) return res.status(404).json({ error: 'Ticket nicht gefunden' });
 
-  // Wiederholfall muss zuerst beantwortet sein
-  if (ticket.recurrence?.candidates?.length && !ticket.recurrence.decision) {
-    return res.status(409).json({ error: 'Bitte zuerst beantworten, ob es sich um einen Wiederholfall handelt.' });
-  }
-
-  const nowMs = Date.now();
-  const nowIso = new Date(nowMs).toISOString();
-  stopClock(ticket, nowMs);
   ticket.status = 'Geschlossen';
   ticket.cause = cause;
   ticket.lessonsLearned = lessonsLearned;
   ticket.tasks = ticket.tasks?.map(t => ({ ...t, status: 'completed' })) || [];
-  ticket.closedAt = nowIso;
-  ticket.updatedAt = nowIso;
-  ticket.history = ticket.history || [];
-  ticket.history.push({ event: 'closed', user: req.body?.author || 'Unbekannt', timestamp: nowIso, details: 'Lernschleife geschlossen' });
 
   saveData(data);
   res.json(ticket);
@@ -692,15 +553,6 @@ if (fs.existsSync(frontendDistPath)) {
 // =========================================================================
 // SERVER START
 // =========================================================================
-// Automatische Eskalation: jede Minute prüfen
-setInterval(() => {
-  try {
-    runEscalationCheck(loadData());
-  } catch (err) {
-    console.error('Eskalationsprüfung fehlgeschlagen:', err.message);
-  }
-}, 60 * 1000);
-
 app.listen(PORT, () => {
   console.log(`===================================================`);
   console.log(`🚀 FactoryAI Server erfolgreich gestartet auf Port ${PORT}`);
