@@ -3,7 +3,7 @@ import Matrix from './components/Matrix';
 import Modal from './components/Modal';
 import SupervisorView from './components/SupervisorView';
 import CockpitView from './components/CockpitView'; // Ergänzt am 18.11.2026
-import ActionEngine from './ActionEngine';
+import ActionEngine from './action-engine/ActionEngine.jsx';
 import DeleteConfirmModal from './components/DeleteConfirmModal'; // Ergänzt am 18.11.2026
 import PinModal from './components/PinModal'; // Ergänzt am 18.11.2026
 
