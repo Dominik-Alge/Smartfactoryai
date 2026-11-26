@@ -62,3 +62,8 @@ test('reachWorkingMs ist die Umkehrung von workingMsBetween', () => {
   assert.equal(at, ch('2026-11-27T09:00')); // 2 h Do + 2 h Fr
   assert.equal(workingMsBetween(from, at, 'einschicht'), 4 * H);
 });
+
+test('Vorholzeit Weihnachten zählt nicht: 23.12.2026 16:00 → 04.01.2027 08:00 = 2 h', () => {
+  // Mi 23.12. 1 h (bis 17:00), 24.–31.12. Vorholzeit, 01./02.01. Feiertage, 03.01. Sonntag, Mo 04.01. 1 h
+  assert.equal(workingMsBetween(ch('2026-12-23T16:00'), ch('2027-01-04T08:00'), 'einschicht'), 2 * H);
+});
