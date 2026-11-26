@@ -1,34 +1,20 @@
 import React from 'react';
-import { LEVEL_STYLES, ensureGlobalStyles } from '../escalationUi'; // Ergänzt am 20.11.2026
 
-export default function SupervisorView({ data = {}, escalations = {}, onCellClick }) {
-  ensureGlobalStyles();
+export default function SupervisorView({ data = {}, onCellClick }) {
   const activeAlarms = [];
   
   // Extrahiere alle roten Zellen aus den übergebenen Daten
   Object.keys(data).forEach((key) => {
     if (data[key]?.status === 'red') {
-      // Nur am ersten Bindestrich trennen (Kriterien können selbst Bindestriche enthalten)
-      const cut = key.indexOf('-');
-      const machineId = key.slice(0, cut);
-      const criterion = key.slice(cut + 1);
-      const esc = escalations[key];
+      const [machineId, criterion] = key.split('-');
       activeAlarms.push({
         key,
         machineId,
         criterion,
-        notes: data[key].notes || [],
-        levelIndex: esc?.levelIndex || 0,
-        level: esc?.level || 'Shopfloor (Lvl 1)',
-        autoEscalated: !!esc?.autoEscalated,
-        isRecurrence: !!esc?.isRecurrence,
-        machineDown: !!(esc?.machineDown || data[key].machineDown)
+        notes: data[key].notes || []
       });
     }
   });
-
-  // Höchste Eskalation zuerst, dann stehende Maschinen
-  activeAlarms.sort((a, b) => b.levelIndex - a.levelIndex || Number(b.machineDown) - Number(a.machineDown));
 
   return (
     <div style={{ fontFamily: '"Inter", "Segoe UI", sans-serif', color: '#0f172a', padding: '0 2px' }}>
@@ -44,19 +30,15 @@ export default function SupervisorView({ data = {}, escalations = {}, onCellClic
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {activeAlarms.map((alarm) => {
             const latestNote = alarm.notes[alarm.notes.length - 1];
-            const st = LEVEL_STYLES[alarm.levelIndex];
-            const escalated = alarm.levelIndex >= 1;
             return (
               <div 
                 key={alarm.key} 
-                className={escalated ? 'sf-esc-pulse' : undefined}
                 onClick={() => onCellClick(alarm.machineId, alarm.criterion)}
                 style={{
                   backgroundColor: '#ffffff',
                   borderRadius: '16px',
-                  '--sf-esc-color': st.color,
-                  border: escalated ? `2px solid ${st.color}` : '1px solid #fca5a5',
-                  borderLeft: `${escalated ? 10 : 6}px solid ${st.color}`,
+                  border: '1px solid #fca5a5',
+                  borderLeft: '6px solid #ef4444',
                   padding: '20px',
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
                   cursor: 'pointer',
@@ -73,21 +55,6 @@ export default function SupervisorView({ data = {}, escalations = {}, onCellClic
                     <span style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>
                       Auftrag / Maschine: {alarm.machineId}
                     </span>
-                    {escalated && (
-                      <span style={{ marginLeft: '10px', fontSize: '12px', fontWeight: '800', backgroundColor: st.soft, color: st.text, border: `1px solid ${st.color}`, padding: '4px 10px', borderRadius: '9999px' }}>
-                        ▲ Eskaliert: {alarm.level}{alarm.autoEscalated ? ' · automatisch' : ''}
-                      </span>
-                    )}
-                    {alarm.machineDown && (
-                      <span style={{ marginLeft: '8px', fontSize: '12px', fontWeight: '800', backgroundColor: '#0f172a', color: '#fff', padding: '4px 10px', borderRadius: '9999px' }}>
-                        ⛔ Maschine steht
-                      </span>
-                    )}
-                    {alarm.isRecurrence && (
-                      <span style={{ marginLeft: '8px', fontSize: '12px', fontWeight: '800', backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #facc15', padding: '4px 10px', borderRadius: '9999px' }}>
-                        ↻ Wiederholfall
-                      </span>
-                    )}
                   </div>
                   <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600' }}>
                     {latestNote ? latestNote.timestamp : ''}

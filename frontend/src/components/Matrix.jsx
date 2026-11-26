@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { LEVEL_STYLES, ensureGlobalStyles } from '../escalationUi'; // Ergänzt am 20.11.2026
 
 export default function ShopfloorMatrix({
   data = {},
@@ -13,10 +12,8 @@ export default function ShopfloorMatrix({
   onDeleteMachine,
   onDeleteCriterion,
   onMoveMachine,
-  onMoveCriterion,
-  escalations = {} // Ergänzt am 20.11.2026: { "13503-Qualität": { levelIndex, machineDown, ... } }
+  onMoveCriterion
 }) {
-  ensureGlobalStyles();
   const [newMachine, setNewMachine] = useState('');
   const [newCriterion, setNewCriterion] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -189,10 +186,6 @@ export default function ShopfloorMatrix({
                   const key = `${machineId}-${criterion}`;
                   const cellData = data?.[key] || data?.cells?.[key];
                   const isRed = cellData?.status === 'red';
-                  const esc = isRed ? escalations?.[key] : null;
-                  const escIdx = esc?.levelIndex || 0;
-                  const escStyle = LEVEL_STYLES[escIdx];
-                  const isDown = isRed && (esc?.machineDown || cellData?.machineDown);
 
                                     const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
                   const cellHistoryEvents = historyLog?.filter(log => {
@@ -210,16 +203,7 @@ export default function ShopfloorMatrix({
                         <button
                           type="button"
                           onClick={() => onCellClick(machineId, criterion)}
-                          className={escIdx >= 1 ? 'sf-esc-pulse' : undefined}
-                          title={
-                            isRed
-                              ? `${escStyle.short}${esc?.autoEscalated ? ' (automatisch eskaliert)' : ''}${isDown ? ' · Maschine steht' : ''}`
-                              : undefined
-                          }
                           style={{
-                            '--sf-esc-color': escStyle.color,
-                            outline: escIdx >= 1 ? `3px solid ${escStyle.color}` : isDown ? '3px solid #1e293b' : 'none',
-                            outlineOffset: '2px',
                             width: '26px',
                             height: '26px',
                             borderRadius: '50%',
@@ -233,26 +217,6 @@ export default function ShopfloorMatrix({
                               : '0 4px 10px rgba(16, 185, 129, 0.35), inset -2px -2px 6px rgba(0,0,0,0.6), inset 2px 2px 6px rgba(255,255,255,0.4)'
                           }}
                         />
-
-                        {isRed && (escIdx >= 1 || isDown) && (
-                          <div
-                            style={{
-                              fontSize: '10px',
-                              fontWeight: '800',
-                              padding: '1px 5px',
-                              borderRadius: '9999px',
-                              backgroundColor: escIdx >= 1 ? escStyle.soft : '#e2e8f0',
-                              color: escIdx >= 1 ? escStyle.text : '#0f172a',
-                              border: `1px solid ${escIdx >= 1 ? escStyle.color : '#94a3b8'}`,
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {escIdx >= 1 ? escStyle.tag : ''}
-                            {escIdx >= 1 && isDown ? ' · ' : ''}
-                            {isDown ? '⛔' : ''}
-                            {esc?.isRecurrence ? ' ↻' : ''}
-                          </div>
-                        )}
 
                         {showHistory && cellHistoryEvents.length > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>

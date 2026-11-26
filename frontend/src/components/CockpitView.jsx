@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Matrix from './Matrix';
-import { LEVEL_STYLES, levelIndex as escLevelIndex, ensureGlobalStyles } from '../escalationUi';
 
 /* =========================================================================
    SHOPFLOOR COCKPIT – v4
@@ -36,9 +35,9 @@ const EARLY_FACTOR = 1.5;
 
 const ESCALATION_LEVELS = [
   'Shopfloor (Lvl 1)',
-  'Gruppenleitung (Lvl 2)',
-  'Inselleitung (Lvl 3)',
-  'Produktionsleitung (Lvl 4)'
+  'Schichtleitung (Lvl 2)',
+  'Produktionsleitung (Lvl 3)',
+  'Werksleitung (Lvl 4)'
 ];
 
 const DEFAULT_QUALITY_CRITERIA = ['Qualität', 'Messmittel', 'Messen (anmelden)', 'Neuteil 0%'];
@@ -192,7 +191,7 @@ function normTicket(t) {
     created,
     closed,
     isOpen: t.status !== 'Geschlossen',
-    level: ESCALATION_LEVELS[escLevelIndex(t.escalationLevel)]
+    level: ESCALATION_LEVELS.includes(t.escalationLevel) ? t.escalationLevel : ESCALATION_LEVELS[0]
   };
 }
 
@@ -957,7 +956,6 @@ export default function CockpitView({
   onDeleteCriterion,
   onCloseView
 }) {
-  ensureGlobalStyles();
   const availableGroups = useMemo(() => (panels || []).filter((p) => p.id !== 'insel_ds'), [panels]);
 
   // --- gespeicherte Einstellungen ---
@@ -1164,28 +1162,13 @@ export default function CockpitView({
           const latestNote = notes[notes.length - 1];
           const ticket = openByPair[`${m}|${c}`];
           const since = ticket?.created || parseAnyDate(latestNote?.timestamp);
-          const esc = p.escalations?.[`${m0}-${c}`];
-          alarms.push({
-            panelId: pid,
-            panelName: p.name || pid,
-            machineId: m,
-            criterion: c,
-            latestNote,
-            ticket,
-            since,
-            escIdx: esc?.levelIndex || 0,
-            autoEscalated: !!esc?.autoEscalated,
-            isRecurrence: !!esc?.isRecurrence,
-            machineDown: !!(esc?.machineDown || cell.machineDown)
-          });
+          alarms.push({ panelId: pid, panelName: p.name || pid, machineId: m, criterion: c, latestNote, ticket, since });
           redByMachine[m] = (redByMachine[m] || 0) + 1;
         });
       });
     });
     const BIG = Number.MAX_SAFE_INTEGER;
-    alarms.sort(
-      (a, b) => b.escIdx - a.escIdx || (a.since ? a.since.getTime() : BIG) - (b.since ? b.since.getTime() : BIG)
-    );
+    alarms.sort((a, b) => (a.since ? a.since.getTime() : BIG) - (b.since ? b.since.getTime() : BIG));
 
     // Zeitraum & Filter
     const period = resolvePeriod(filters, now);
@@ -1363,12 +1346,7 @@ export default function CockpitView({
             value={`${model.machinesFree}/${model.machines.length}`}
             tone={model.machinesFree === model.machines.length ? 'green' : 'amber'}
           />
-          <Kpi
-            label="Aktive Störungen"
-            value={model.alarms.length}
-            tone={model.alarms.length ? 'red' : 'green'}
-            sub={`${model.alarms.filter((a) => a.escIdx >= 1).length} eskaliert · ${model.alarms.filter((a) => a.machineDown).length} stehen`}
-          />
+          <Kpi label="Aktive Störungen" value={model.alarms.length} tone={model.alarms.length ? 'red' : 'green'} />
           <Kpi
             label="Längste Störung"
             value={oldest?.since ? fmtDuration(model.now - oldest.since) : '–'}
@@ -1463,26 +1441,15 @@ export default function CockpitView({
                     <div className="flex flex-wrap gap-1 flex-1">
                       {(panel.criteria || []).map((crit) => {
                         const isRed = panel.cells?.[`${machineId}-${crit}`]?.status === 'red';
-                        const esc = isRed ? panel.escalations?.[`${machineId}-${crit}`] : null;
-                        const escIdx = esc?.levelIndex || 0;
                         return (
                           <button
                             type="button"
                             key={crit}
-                            title={`${machineId} · ${crit}: ${isRed ? `STÖRUNG${escIdx >= 1 ? ` · ${LEVEL_STYLES[escIdx].short}` : ''}` : 'OK'}`}
+                            title={`${machineId} · ${crit}: ${isRed ? 'STÖRUNG' : 'OK'}`}
                             onClick={() => openDetail(panelId, machineId, crit)}
                             className={`${dotClass} rounded-sm transition-transform hover:scale-125 ${
-                              isRed
-                                ? escIdx >= 1
-                                  ? 'bg-red-500 sf-esc-pulse'
-                                  : 'bg-red-500 ring-2 ring-red-300 animate-pulse'
-                                : 'bg-emerald-400/90 hover:bg-emerald-300'
+                              isRed ? 'bg-red-500 ring-2 ring-red-300 animate-pulse' : 'bg-emerald-400/90 hover:bg-emerald-300'
                             }`}
-                            style={
-                              escIdx >= 1
-                                ? { '--sf-esc-color': LEVEL_STYLES[escIdx].color, outline: `3px solid ${LEVEL_STYLES[escIdx].color}`, outlineOffset: '1px' }
-                                : undefined
-                            }
                           />
                         );
                       })}
@@ -1511,30 +1478,8 @@ export default function CockpitView({
           <div
             key={`${a.panelId}-${a.machineId}-${a.criterion}`}
             onClick={() => openDetail(a.panelId, a.machineId, a.criterion)}
-            className={`bg-[#1e293b] hover:bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-pointer transition shadow ${
-              a.escIdx >= 1 ? 'sf-esc-pulse' : ''
-            }`}
-            style={{
-              '--sf-esc-color': LEVEL_STYLES[a.escIdx].color,
-              borderLeft: `${a.escIdx >= 1 ? 8 : 4}px solid ${LEVEL_STYLES[a.escIdx].color}`,
-              borderColor: a.escIdx >= 1 ? LEVEL_STYLES[a.escIdx].color : undefined
-            }}
+            className="bg-[#1e293b] hover:bg-slate-800 border-l-4 border-red-500 border border-slate-700 rounded-lg p-3 cursor-pointer transition shadow"
           >
-            {(a.escIdx >= 1 || a.machineDown || a.isRecurrence) && (
-              <div className="flex flex-wrap gap-1 mb-1.5">
-                {a.escIdx >= 1 && (
-                  <span
-                    className="text-[11px] font-black px-2 py-0.5 rounded-full"
-                    style={{ background: LEVEL_STYLES[a.escIdx].color, color: '#0f172a' }}
-                  >
-                    ▲ {LEVEL_STYLES[a.escIdx].short}
-                    {a.autoEscalated ? ' · auto' : ''}
-                  </span>
-                )}
-                {a.machineDown && <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-white text-slate-900">⛔ steht</span>}
-                {a.isRecurrence && <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-yellow-300 text-yellow-950">↻ Wiederholfall</span>}
-              </div>
-            )}
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="text-xs font-extrabold uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-300 truncate">
                 {a.criterion}
@@ -1555,7 +1500,7 @@ export default function CockpitView({
             <div className="flex justify-between items-center mt-2 gap-2 text-[11px] text-slate-400">
               <span className="truncate">
                 {a.latestNote?.author || 'Shopfloor'}
-                {a.ticket ? ` · ${a.ticket.id}` : ''}
+                {a.ticket ? ` · ${a.ticket.level}` : ''}
               </span>
               <button
                 type="button"
@@ -2322,7 +2267,6 @@ export default function CockpitView({
                 machines={panelsMap[currentSlide.id].machines || []}
                 criteria={panelsMap[currentSlide.id].criteria || []}
                 historyLog={panelsMap[currentSlide.id].historyLog || []}
-                escalations={panelsMap[currentSlide.id].escalations || {}}
                 currentPanelName={panelsMap[currentSlide.id].name}
                 onCellClick={(m, c) => onCellClick(m, c, currentSlide.id)}
                 onAddMachine={onAddMachine}
@@ -2571,3 +2515,7 @@ export default function CockpitView({
     </div>
   );
 }
+
+
+
+

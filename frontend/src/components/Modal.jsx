@@ -13,7 +13,6 @@ export default function Modal({
   const [author, setAuthor] = useState('');
   const [note, setNote] = useState('');
   const [selectedReason, setSelectedReason] = useState('');
-  const [machineDown, setMachineDown] = useState(false); // Ergänzt am 20.11.2026
 
   // Setzt die Formularfelder zurück, wenn das Modal geöffnet wird
   useEffect(() => {
@@ -21,7 +20,6 @@ export default function Modal({
       setNote('');
       setAuthor('');
       setSelectedReason('');
-      setMachineDown(!!currentData?.machineDown);
     }
   }, [isOpen]);
 
@@ -41,7 +39,7 @@ export default function Modal({
       : note.trim();
 
     // WICHTIG: Wir übergeben hier das feste 'criterion' und den korrekten 'targetStatus'
-    onSave(machineId, criterion, targetStatus, combinedNote, author.trim() || 'Mitarbeiter', targetStatus === 'red' ? machineDown : false);
+    onSave(machineId, criterion, targetStatus, combinedNote, author.trim() || 'Mitarbeiter');
   };
 
   return (
@@ -102,10 +100,7 @@ export default function Modal({
                 </label>
                 <select
                   value={selectedReason}
-                  onChange={(e) => {
-                    setSelectedReason(e.target.value);
-                    if (e.target.value === 'Maschine steht') setMachineDown(true);
-                  }}
+                  onChange={(e) => setSelectedReason(e.target.value)}
                   style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
                   required
                 >
@@ -116,38 +111,6 @@ export default function Modal({
                 </select>
               </div>
             )}
-
-            {/* Auswirkung: Steht die Maschine? (beschleunigt die Eskalation) */}
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Auswirkung
-              </label>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {[
-                  { v: false, label: 'Läuft eingeschränkt' },
-                  { v: true, label: '⛔ Maschine steht' }
-                ].map((o) => (
-                  <button
-                    key={String(o.v)}
-                    type="button"
-                    onClick={() => setMachineDown(o.v)}
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      border: machineDown === o.v ? `2px solid ${o.v ? '#dc2626' : '#475569'}` : '1px solid #cbd5e1',
-                      backgroundColor: machineDown === o.v ? (o.v ? '#fee2e2' : '#f1f5f9') : '#fff',
-                      color: machineDown === o.v ? (o.v ? '#991b1b' : '#0f172a') : '#64748b'
-                    }}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Mitarbeiter-Kürzel */}
             <div>

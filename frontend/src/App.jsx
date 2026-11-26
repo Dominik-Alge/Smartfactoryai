@@ -6,10 +6,6 @@ import CockpitView from './components/CockpitView'; // Ergänzt am 18.11.2026
 import ActionEngine from './ActionEngine';
 import DeleteConfirmModal from './components/DeleteConfirmModal'; // Ergänzt am 18.11.2026
 import PinModal from './components/PinModal'; // Ergänzt am 18.11.2026
-import ToolDrawer from './components/ToolDrawer'; // Ergänzt am 20.11.2026
-import { ensureGlobalStyles } from './escalationUi'; // Ergänzt am 20.11.2026
-
-ensureGlobalStyles();
 
 // Ersetze das alte Skript hiermit (Nutzt das offizielle Play CDN):
 if (!document.getElementById('tailwind-cdn')) {
@@ -89,15 +85,10 @@ const reasonOptions = {
     ]
 };
 
-// Die Kriterien heissen im Panel teilweise anders als oben → gleiche Gründe zuordnen (Ergänzt am 20.11.2026)
-reasonOptions["Systemfehler/Shopfloor"] = reasonOptions["System/Shopfloor"];
-reasonOptions["Neuteil 0%"] = reasonOptions["Neuteil"];
-reasonOptions["Messen (anmelden)"] = reasonOptions["Messen"];
-
 export default function App() {
   const [panels, setPanels] = useState([]); // Liste aller Excel-Mappen
   const [activePanelId, setActivePanelId] = useState('drehen'); // Aktive Mappe
-  const [panelData, setPanelData] = useState({ name: '', machines: [], criteria: [], cells: {}, historyLog: [], escalations: {} });
+  const [panelData, setPanelData] = useState({ name: '', machines: [], criteria: [], cells: {} });
   
   const [modalConfig, setModalConfig] = useState({ isOpen: false, machineId: '', criterion: '' });
     const [deleteModal, setDeleteModal] = useState({
@@ -151,10 +142,7 @@ export default function App() {
         name: data.name || '',
         machines: data.machines || [],
         criteria: data.criteria || [],
-        cells: data.cells || {},
-        historyLog: data.historyLog || [],
-        escalations: data.escalations || {},
-        cellPanels: data.cellPanels || {}
+        cells: data.cells || {}
       });
       setError(null);
     } catch (err) {
@@ -286,20 +274,17 @@ export default function App() {
     }
   };
 
-  const handleCellClick = (machineId, criterion, explicitPanelId) => {
-    // In der Insel-Sicht DS gehört jede Zelle zu einer echten Gruppe (Fehlerkorrektur 20.11.2026)
-    const panelId = explicitPanelId || panelData.cellPanels?.[`${machineId}-${criterion}`] || activePanelId;
-    setModalConfig({ isOpen: true, machineId, criterion, panelId });
+  const handleCellClick = (machineId, criterion) => {
+    setModalConfig({ isOpen: true, machineId, criterion });
   };
 
   // 7. Ampel-Status ändern und Notiz speichern
-  const handleSaveStatus = async (machineId, criterion, status, note, author, machineDown = false) => {
+  const handleSaveStatus = async (machineId, criterion, status, note, author) => {
     try {
-      const targetPanelId = modalConfig.panelId && modalConfig.panelId !== 'insel_ds' ? modalConfig.panelId : activePanelId;
-      const response = await fetch(`${API_URL}/api/panel/${targetPanelId}/status`, {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ machineId, criterion, status, note, author, machineDown })
+        body: JSON.stringify({ machineId, criterion, status, note, author })
       });
 
       if (!response.ok) throw new Error('Speichern fehlgeschlagen');
@@ -349,7 +334,6 @@ export default function App() {
           </button>
         </div>
         <ActionEngine />
-        <ToolDrawer apiUrl={API_URL} dark viewName="Action Engine (Ebene 2)" />
       </div>
     );
   }
@@ -361,7 +345,7 @@ export default function App() {
           panels={panels}
           onCellClick={(machineId, criterion, panelId) => {
             if (panelId && panelId !== activePanelId) setActivePanelId(panelId);
-            handleCellClick(machineId, criterion, panelId);
+            handleCellClick(machineId, criterion);
           }}
           onAddMachine={handleAddMachine}
           onAddCriterion={handleAddCriterion}
@@ -369,7 +353,6 @@ export default function App() {
           onDeleteCriterion={handleDeleteCriterion}
           onCloseView={() => setCurrentView('shopfloor')}
         />
-        <ToolDrawer apiUrl={API_URL} dark viewName="Shopfloor Cockpit (TV)" />
         {modalConfig.isOpen && (
           <Modal
             isOpen={modalConfig.isOpen}
@@ -509,7 +492,6 @@ export default function App() {
         /* Wenn die Vorgesetzten-Sicht aktiv ist: Zeige NUR die roten Schadenskarten */
         <SupervisorView 
           data={panelData.cells}
-          escalations={panelData.escalations}
           onCellClick={handleCellClick}
         />
       ) : (
@@ -525,7 +507,6 @@ export default function App() {
           onDeleteMachine={handleDeleteMachine}
           onDeleteCriterion={handleDeleteCriterion}
           historyLog={panelData.historyLog}
-          escalations={panelData.escalations}
           onMoveMachine={handleMoveMachine}
           onMoveCriterion={handleMoveCriterion}
 
@@ -570,8 +551,6 @@ export default function App() {
         onClose={() => setDeleteModal({ isOpen: false, targetType: '', targetId: '', targetName: '' })}
         onConfirm={executeConfirmedDelete}
       />
-
-      <ToolDrawer apiUrl={API_URL} viewName={`Shopfloor Panel · ${panelData.name || ''}`} />
 
             <PinModal
         isOpen={pendingView !== null}
