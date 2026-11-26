@@ -33,11 +33,13 @@ const EARLY_WINDOW_DAYS = 28;
 const EARLY_MIN_CASES = 3;
 const EARLY_FACTOR = 1.5;
 
+// Muss mit backend/config/escalation.js übereinstimmen (Server wandelt alte Namen um)
 const ESCALATION_LEVELS = [
-  'Shopfloor (Lvl 1)',
-  'Schichtleitung (Lvl 2)',
-  'Produktionsleitung (Lvl 3)',
-  'Werksleitung (Lvl 4)'
+  'Mitarbeiter (Lvl 1)',
+  'Gruppenleiter (Lvl 2)',
+  'Inselleiter (Lvl 3)',
+  'Produktionsleiter (Lvl 4)',
+  'Geschäftsleitung (Lvl 5)'
 ];
 
 const DEFAULT_QUALITY_CRITERIA = ['Qualität', 'Messmittel', 'Messen (anmelden)', 'Neuteil 0%'];
