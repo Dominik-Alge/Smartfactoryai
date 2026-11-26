@@ -1506,14 +1506,14 @@ export default function CockpitView({
                       {machineId}
                     </button>
                     <span
-                      className={`shrink-0 text-[10px] font-bold px-1 rounded border ${
+                      className={`shrink-0 text-[11px] font-bold px-1.5 rounded border whitespace-nowrap ${
                         isTwoShift(panel.machineCalendars, machineId)
                           ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40'
                           : 'bg-slate-700/60 text-slate-300 border-slate-600'
                       }`}
                       title={isTwoShift(panel.machineCalendars, machineId) ? 'Zweischicht' : 'Einschicht'}
                     >
-                      {isTwoShift(panel.machineCalendars, machineId) ? '2S' : '1S'}
+                      {isTwoShift(panel.machineCalendars, machineId) ? '2-Schicht' : '1-Schicht'}
                     </span>
                     <div className="flex flex-wrap gap-1 flex-1">
                       {(panel.criteria || []).map((crit) => {
