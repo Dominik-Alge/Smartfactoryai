@@ -22,7 +22,7 @@ Lernschleife nach PDCA. Entwickelt von Dominik Alge.
 | Bereich | Zweck |
 |---|---|
 | **Shopfloor Panel** | Ampelmatrix je Gruppe (Maschinen × Kriterien). Eine rote Zelle erzeugt automatisch ein Ticket und eine Mail an den zuständigen Bereich. |
-| **Shopfloor Cockpit (TV)** | Übersicht für Bildschirm und Besprechung: Ansichten Betrieb, Steuerung und Prävention mit Kennzahlen, Risiken, Frühwarnung. |
+| **Shopfloor Cockpit (TV)** | Übersicht für Bildschirm und Besprechung: Ansichten Betrieb, Steuerung und Prävention mit Kennzahlen, Risiken, Frühwarnung. Unter «Anpassen» lässt sich jeder Baustein mit «⇔» in ein Band oben legen und auf ⅓, ⅔ oder die ganze Breite ziehen, z. B. die Produktionslinien für den grossen TV. |
 | **Action Engine (Ebene 2)** | Bearbeitung der Tickets nach 0 · P · D · C · A, Eskalation nach Arbeitszeit, Historie & Auswertung. Details: [ACTION_ENGINE.md](ACTION_ENGINE.md) |
 
 ### Action Engine in Kürze
