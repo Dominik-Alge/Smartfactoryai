@@ -79,14 +79,19 @@ export function AgingBar({ progress, state }) {
   );
 }
 
-// Fehlermeldung, die der Benutzer beheben kann
-export function Notice({ children, onClose }) {
+// Hinweis: Fehlermeldung (tone="error") oder Information (tone="info")
+const NOTICE_TONES = {
+  error: 'bg-red-500/15 border-red-500/40 text-red-200',
+  info: 'bg-sky-500/15 border-sky-500/40 text-sky-200'
+};
+
+export function Notice({ children, onClose, tone = 'error' }) {
   if (!children) return null;
   return (
-    <div className="flex items-start justify-between gap-3 text-xs bg-red-500/15 border border-red-500/40 text-red-200 rounded-lg px-3 py-2">
+    <div className={`flex items-start justify-between gap-3 text-xs border rounded-lg px-3 py-2 ${NOTICE_TONES[tone]}`}>
       <span>{children}</span>
       {onClose && (
-        <button type="button" onClick={onClose} className="text-red-300 hover:text-white" aria-label="Schliessen">
+        <button type="button" onClick={onClose} className="opacity-70 hover:opacity-100" aria-label="Schliessen">
           ✕
         </button>
       )}

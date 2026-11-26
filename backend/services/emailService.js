@@ -3,8 +3,11 @@
 // -------------------------------------------------------------------------
 // Zugangsdaten kommen ausschliesslich aus Umgebungsvariablen:
 //   SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS
-// Ohne SMTP_HOST werden keine Mails verschickt (z. B. auf Render), sondern
-// nur im Log vermerkt. Ein Mailfehler bricht nie eine Speicherung ab.
+// Ohne SMTP_HOST werden keine Mails verschickt (z. B. auf Render, oder solange
+// die IT den Versand nicht freigibt). Jede Mail – verschickt oder nicht –
+// landet im Postausgang (die letzten 30, nur im Arbeitsspeicher). Dort kann
+// man sie in der Action Engine als Vorschau ansehen.
+// Ein Mailfehler bricht nie eine Speicherung ab.
 // =========================================================================
 
 import nodemailer from 'nodemailer';
@@ -26,18 +29,44 @@ const transporter = process.env.SMTP_HOST
 const esc = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-async function send({ to, subject, html }) {
-  if (!to) return;
+// --- Postausgang -------------------------------------------------------------
+
+const OUTBOX_SIZE = 30;
+const outbox = [];
+
+export const mailEnabled = () => Boolean(transporter);
+export const getOutbox = () => outbox;
+
+function record(entry) {
+  outbox.unshift(entry);
+  outbox.length = Math.min(outbox.length, OUTBOX_SIZE);
+  return entry;
+}
+
+async function send({ to, subject, html, kind }) {
+  if (!to) return null;
+  const entry = record({
+    id: `M-${Date.now().toString(36)}`,
+    at: new Date().toISOString(),
+    kind,
+    to,
+    subject,
+    html,
+    status: transporter ? 'wird gesendet' : 'nicht verschickt (Mailversand nicht freigegeben)'
+  });
   if (!transporter) {
     console.log(`[Mail deaktiviert] an ${to}: ${subject}`);
-    return;
+    return entry;
   }
   try {
     await transporter.sendMail({ from: `"FactoryAI Shopfloor" <${SENDER}>`, to, subject, html });
+    entry.status = 'gesendet';
     console.log(`Mail an ${to} gesendet: ${subject}`);
   } catch (error) {
+    entry.status = `Fehler: ${error.message}`;
     console.error('Fehler beim Senden der Mail:', error.message);
   }
+  return entry;
 }
 
 function frame(color, heading, rows, quote) {
@@ -58,6 +87,7 @@ export function sendStatusAlert(machineId, criterion, note, author) {
   const contact = criterionContacts[criterion];
   if (!contact) return;
   return send({
+    kind: 'Alarm ROT',
     to: contact.email,
     subject: `Shopfloor: Status ROT bei ${machineId} (${criterion})`,
     html: frame('#ef4444', 'Shopfloor Alert – Status ROT', [
@@ -72,6 +102,7 @@ export function sendEscalationMail(ticket, toLevel, reason, author) {
   const contact = escalationContacts[toLevel];
   if (!contact) return;
   return send({
+    kind: 'Eskalation',
     to: contact.email,
     subject: `Eskalation an ${contact.label}: ${ticket.id} – Maschine ${ticket.machineId}`,
     html: frame('#f59e0b', `Ticket an ${contact.label} eskaliert`, [
