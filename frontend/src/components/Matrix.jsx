@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
+import { SHIFTS, isSplit, isTwoShift, shiftState } from '../shifts';
+
+// Farben der Ampelpunkte (grau = Schicht nicht besetzt)
+const DOT_BG = {
+  red: 'radial-gradient(circle at 35% 35%, #ff8787 0%, #ef4444 40%, #b91c1c 85%, #7f1d1d 100%)',
+  green: 'radial-gradient(circle at 35% 35%, #a7f3d0 0%, #10b981 40%, #047857 85%, #064e3b 100%)',
+  off: 'radial-gradient(circle at 35% 35%, #e2e8f0 0%, #cbd5e1 40%, #94a3b8 85%, #64748b 100%)'
+};
 
 export default function ShopfloorMatrix({
   data = {},
   machines = [],
   criteria = [],
   currentPanelName = '',
+  machineCalendars = {},
+  onToggleShift,
   onCellClick,
   onAddMachine,
   onAddCriterion,
@@ -123,7 +133,25 @@ export default function ShopfloorMatrix({
                   </div>
 
                   <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '2px' }}>{m}</div>
-                  <div style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8' }}>Maschine</div>
+                  <button
+                    type="button"
+                    disabled={!onToggleShift}
+                    onClick={() => onToggleShift?.(m, isTwoShift(machineCalendars, m) ? 'einschicht' : 'zweischicht')}
+                    title={onToggleShift ? 'Klicken: zwischen 1-Schicht und 2-Schicht wechseln' : undefined}
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      padding: '1px 8px',
+                      borderRadius: '9999px',
+                      border: '1px solid',
+                      cursor: onToggleShift ? 'pointer' : 'default',
+                      ...(isTwoShift(machineCalendars, m)
+                        ? { backgroundColor: '#e0e7ff', color: '#3730a3', borderColor: '#a5b4fc' }
+                        : { backgroundColor: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' })
+                    }}
+                  >
+                    {isTwoShift(machineCalendars, m) ? '2-Schicht' : '1-Schicht'}
+                  </button>
                 </th>
               ))}
               <th style={{ backgroundColor: '#f8fafc' }}></th>
@@ -170,23 +198,54 @@ export default function ShopfloorMatrix({
                   return (
                     <td key={machineId} style={{ padding: '12px 8px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff', verticalAlign: 'middle', textAlign: 'center' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
-                        <button
-                          type="button"
-                          onClick={() => onCellClick(machineId, criterion)}
-                          style={{
-                            width: '26px',
-                            height: '26px',
-                            borderRadius: '50%',
-                            border: 'none',
-                            cursor: 'pointer',
-                            background: isRed
-                              ? 'radial-gradient(circle at 35% 35%, #ff8787 0%, #ef4444 40%, #b91c1c 85%, #7f1d1d 100%)'
-                              : 'radial-gradient(circle at 35% 35%, #a7f3d0 0%, #10b981 40%, #047857 85%, #064e3b 100%)',
-                            boxShadow: isRed
-                              ? '0 4px 10px rgba(239, 68, 68, 0.45), inset -2px -2px 6px rgba(0,0,0,0.6), inset 2px 2px 6px rgba(255,255,255,0.4)'
-                              : '0 4px 10px rgba(16, 185, 129, 0.35), inset -2px -2px 6px rgba(0,0,0,0.6), inset 2px 2px 6px rgba(255,255,255,0.4)'
-                          }}
-                        />
+                        {isSplit(machineCalendars, machineId, criterion) ? (
+                          // Zweischicht: je Schicht ein halber Punkt (F = Früh, S = Spät)
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            {SHIFTS.map((sh) => {
+                              const state = shiftState(cellData, sh.id);
+                              return (
+                                <button
+                                  key={sh.id}
+                                  type="button"
+                                  onClick={() => onCellClick(machineId, criterion, sh.id)}
+                                  title={`${sh.label}: ${state === 'red' ? 'fehlt' : state === 'off' ? 'nicht besetzt' : 'besetzt'}`}
+                                  style={{
+                                    width: '22px',
+                                    height: '22px',
+                                    borderRadius: '50%',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    background: DOT_BG[state],
+                                    color: '#fff',
+                                    fontSize: '10px',
+                                    fontWeight: '800',
+                                    boxShadow: 'inset -2px -2px 5px rgba(0,0,0,0.5), inset 2px 2px 5px rgba(255,255,255,0.4)'
+                                  }}
+                                >
+                                  {sh.short}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onCellClick(machineId, criterion)}
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: isRed
+                                ? 'radial-gradient(circle at 35% 35%, #ff8787 0%, #ef4444 40%, #b91c1c 85%, #7f1d1d 100%)'
+                                : 'radial-gradient(circle at 35% 35%, #a7f3d0 0%, #10b981 40%, #047857 85%, #064e3b 100%)',
+                              boxShadow: isRed
+                                ? '0 4px 10px rgba(239, 68, 68, 0.45), inset -2px -2px 6px rgba(0,0,0,0.6), inset 2px 2px 6px rgba(255,255,255,0.4)'
+                                : '0 4px 10px rgba(16, 185, 129, 0.35), inset -2px -2px 6px rgba(0,0,0,0.6), inset 2px 2px 6px rgba(255,255,255,0.4)'
+                            }}
+                          />
+                        )}
 
                       </div>
                     </td>

@@ -48,3 +48,12 @@ export const COMPANY_HOLIDAYS = [
   { from: '2027-07-26', to: '2027-08-06', label: 'Betriebsferien Sommer 2027' },
   { from: '2027-12-24', to: '2027-12-31', label: 'Vorholzeit Weihnachten 2027' }
 ];
+
+// Kriterien, die bei Zweischicht-Maschinen je Schicht einen eigenen Punkt haben.
+// Beispiel: fehlt der Bediener der Frühschicht, wird nur "Früh" rot.
+// Muss mit frontend/src/shifts.js übereinstimmen.
+export const SHIFT_SPLIT_CRITERIA = ['Personal'];
+export const SHIFTS = [
+  { id: 'frueh', short: 'F', label: 'Frühschicht' },
+  { id: 'spaet', short: 'S', label: 'Spätschicht' }
+];

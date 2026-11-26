@@ -142,7 +142,8 @@ export default function App() {
         name: data.name || '',
         machines: data.machines || [],
         criteria: data.criteria || [],
-        cells: data.cells || {}
+        cells: data.cells || {},
+        machineCalendars: data.machineCalendars || {}
       });
       setError(null);
     } catch (err) {
@@ -274,17 +275,34 @@ export default function App() {
     }
   };
 
-  const handleCellClick = (machineId, criterion) => {
-    setModalConfig({ isOpen: true, machineId, criterion });
+  // shift: bei Zweischicht-Maschinen und geteilten Kriterien (z. B. Personal) die Schicht
+  const handleCellClick = (machineId, criterion, shift = null) => {
+    setModalConfig({ isOpen: true, machineId, criterion, shift });
+  };
+
+  // 1-Schicht / 2-Schicht einer Maschine umstellen (gleiche Einstellung wie in der Action Engine)
+  const handleToggleShift = async (machineId, calendarId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/panel/${activePanelId}/machine-calendar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machineId, calendarId })
+      });
+      if (!response.ok) throw new Error('Umstellen fehlgeschlagen');
+      fetchActivePanelData();
+    } catch (err) {
+      alert('Schichtmodell konnte nicht geändert werden.');
+      console.error(err);
+    }
   };
 
   // 7. Ampel-Status ändern und Notiz speichern
-  const handleSaveStatus = async (machineId, criterion, status, note, author) => {
+  const handleSaveStatus = async (machineId, criterion, status, note, author, shift = null) => {
     try {
       const response = await fetch(`${API_URL}/api/panel/${activePanelId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ machineId, criterion, status, note, author })
+        body: JSON.stringify({ machineId, criterion, status, note, author, shift })
       });
 
       if (!response.ok) throw new Error('Speichern fehlgeschlagen');
@@ -343,9 +361,9 @@ export default function App() {
         <CockpitView
           apiUrl={API_URL}
           panels={panels}
-          onCellClick={(machineId, criterion, panelId) => {
+          onCellClick={(machineId, criterion, panelId, shift) => {
             if (panelId && panelId !== activePanelId) setActivePanelId(panelId);
-            handleCellClick(machineId, criterion);
+            handleCellClick(machineId, criterion, shift);
           }}
           onAddMachine={handleAddMachine}
           onAddCriterion={handleAddCriterion}
@@ -358,6 +376,7 @@ export default function App() {
             isOpen={modalConfig.isOpen}
             machineId={modalConfig.machineId}
             criterion={modalConfig.criterion}
+            shift={modalConfig.shift}
             allCriteria={Object.keys(reasonOptions)}
             reasons={reasonOptions}
             currentData={
@@ -501,6 +520,8 @@ export default function App() {
           machines={panelData.machines}
           criteria={panelData.criteria}
           currentPanelName={panelData.name}
+          machineCalendars={panelData.machineCalendars}
+          onToggleShift={handleToggleShift}
           onCellClick={handleCellClick}
           onAddMachine={handleAddMachine}
           onAddCriterion={handleAddCriterion}
@@ -519,6 +540,7 @@ export default function App() {
           isOpen={modalConfig.isOpen}
           machineId={modalConfig.machineId}
           criterion={modalConfig.criterion}
+            shift={modalConfig.shift}
           allCriteria={Object.keys(reasonOptions)} 
           reasons={reasonOptions}                  
           currentData={

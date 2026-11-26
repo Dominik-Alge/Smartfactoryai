@@ -59,6 +59,10 @@ const CASES = [
     tasks: [{ title: 'Rüstcheckliste ergänzen', owner: 'AVOR / KVP', dueH: -10, done: true }]
   },
   {
+    panelId: 'schleifen', machineId: '13510', criterion: 'Personal', note: 'Bediener krank', shift: 'spaet',
+    workedH: 1.5, level: 0, phase: 'sofort'
+  },
+  {
     panelId: 'drehen', machineId: '12774', criterion: 'Werkzeug', note: 'Werkzeugbruch Bohrer Ø 6',
     workedH: 1, level: 0, phase: 'sofort', calendar: 'einschicht'
   },
@@ -176,10 +180,20 @@ export function seedDemoData(data, saveData) {
       t.closedAt = new Date().toISOString();
       t.effectiveness = { result: 'wirksam', note: '', by: 'Beispiel', at: t.closedAt };
     } else {
-      panel.cells[`${c.machineId}-${c.criterion}`] = { status: 'red', notes: [] };
+      const cell = { status: 'red', notes: [] };
+      if (c.shift) {
+        cell.shifts = { frueh: 'green', spaet: 'green', [c.shift]: 'red' };
+        t.title = `${c.criterion} (${c.shift === 'frueh' ? 'Frühschicht' : 'Spätschicht'}): ${c.note}`;
+      }
+      panel.cells[`${c.machineId}-${c.criterion}`] = cell;
     }
     data._actions[t.id] = t;
   }
+  // Ein Bediener, der schichtet: an 13404 ist die Spätschicht geplant nicht besetzt
+  if (data.schleifen) data.schleifen.cells['13404-Personal'] = { status: 'green', notes: [], shifts: { frueh: 'green', spaet: 'off' } };
+  // Einschicht-Maschine zur Anschauung
+  if (data.drehen) data.drehen.machineCalendars = { ...(data.drehen.machineCalendars || {}), 12766: 'einschicht' };
+
   saveData(data);
   console.log('Beispieldaten für die Vorführung angelegt.');
 }

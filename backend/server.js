@@ -23,7 +23,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import { loadData, saveData, getPanelKeys, STORAGE_DIR } from './services/storage.js';
-import { generateActionId, createTicket } from './services/actionService.js';
+import { generateActionId, createTicket, addHistory } from './services/actionService.js';
+import { isSplitCell, applyShiftStatus, shiftLabel, SHIFT_STATES } from './services/shiftCells.js';
+import { SHIFTS } from './config/calendar.js';
 import { sendStatusAlert } from './services/emailService.js';
 import ticketRoutes from './routes/tickets.js';
 import { seedDemoData } from './demo/seedDemo.js';
@@ -232,29 +234,53 @@ app.post('/api/panel/:id/status', async (req, res) => {
   const panel = data[req.params.id];
   if (!panel) return res.status(404).json({ error: "Panel nicht gefunden" });
 
-  const { machineId, criterion, status, note, author } = req.body;
+  const { machineId, criterion, status, note, author, shift } = req.body;
   const cellKey = `${machineId}-${criterion}`;
-  const previousStatus = panel.cells[cellKey] ? panel.cells[cellKey].status : "green";
+  if (!panel.cells[cellKey]) panel.cells[cellKey] = { status: 'green', notes: [] };
+  const cell = panel.cells[cellKey];
+  const previousStatus = cell.status;
 
-  if (!panel.cells[cellKey]) {
-    panel.cells[cellKey] = { status: "green", notes: [] };
+  // Zweischicht-Maschine, geteiltes Kriterium (z. B. Personal): Status je Schicht
+  const perShift = shift && isSplitCell(panel, machineId, criterion);
+  if (perShift) {
+    if (!SHIFT_STATES.includes(status)) return res.status(400).json({ error: 'Unbekannter Status.' });
+    const before = cell.shifts?.[shift];
+    applyShiftStatus(cell, shift, status);
+    // Ist schon ein Ticket offen und fehlt jetzt zusätzlich die andere Schicht, wird das dort vermerkt
+    if (status === 'red' && before !== 'red' && previousStatus === 'red') {
+      const open = Object.values(data._actions).find(
+        (t) => !t.closedAt && t.panelId === String(req.params.id) && t.machineId === String(machineId) && t.criterion === criterion
+      );
+      if (open) addHistory(open, 'shift', author, `Zusätzlich betroffen: ${shiftLabel(shift)}. ${note || ''}`.trim());
+    }
+  } else {
+    cell.status = status;
+    // Ganze Zelle ohne Schichtangabe geändert (z. B. aus Insel-Sicht oder Cockpit-Detail):
+    // GRÜN setzt rote Schichten zurück, ROT gilt für alle besetzten Schichten.
+    if (isSplitCell(panel, machineId, criterion) || cell.shifts) {
+      const from = status === 'green' ? 'red' : 'green';
+      for (const s of SHIFTS) {
+        const now = cell.shifts?.[s.id] || 'green';
+        if (now === from) applyShiftStatus(cell, s.id, status);
+      }
+      cell.status = status;
+    }
   }
 
-  panel.cells[cellKey].status = status;
-
   if (note && note.trim() !== "") {
-    panel.cells[cellKey].notes.push({
+    cell.notes.push({
       author: author || "Mitarbeiter",
-      text: note,
+      text: perShift ? `[${shiftLabel(shift)}] ${note}` : note,
       timestamp: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' })
     });
   }
 
   // Automatisch ein Ticket erstellen, wenn die Zelle neu auf ROT geht
-  if (status === 'red' && previousStatus !== 'red') {
+  if (cell.status === 'red' && previousStatus !== 'red') {
+    const label = perShift ? `${criterion} (${shiftLabel(shift)})` : criterion;
     const ticket = createTicket({
       id: generateActionId(data),
-      title: `${criterion}: ${note || 'Störung gemeldet'}`,
+      title: `${label}: ${note || 'Störung gemeldet'}`,
       panelId: req.params.id,
       machineId,
       criterion,
@@ -262,7 +288,7 @@ app.post('/api/panel/:id/status', async (req, res) => {
       author
     });
     data._actions[ticket.id] = ticket;
-    sendStatusAlert(machineId, criterion, note, author);
+    sendStatusAlert(machineId, label, note, author);
   }
 
   saveData(data);
