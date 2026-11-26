@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { shiftState, shiftLabel } from '../shifts';
 
 export default function Modal({
   isOpen,
   onClose,
   machineId,
   criterion,         // Das bereits fest vorgegebene Kriterium (z.B. "AVOR")
+  shift = null,      // Schicht bei Zweischicht-Maschinen (z.B. "frueh"), sonst null
   allCriteria = [],  // Kann im Hintergrund bleiben
   reasons = {},        // Deine 'reasonOptions' Struktur aus App.jsx
   currentData,
@@ -25,7 +27,9 @@ export default function Modal({
 
   if (!isOpen) return null;
 
-  const isCurrentRed = currentData?.status === 'red';
+  // Bei Schicht-Punkten zählt der Zustand dieser Schicht, sonst der der Zelle
+  const shiftNow = shift ? shiftState(currentData, shift) : null;
+  const isCurrentRed = shift ? shiftNow === 'red' : currentData?.status === 'red';
 
   // WICHTIG: Nutzt jetzt direkt das fest übergebene 'criterion' aus der Matrix!
   const availableReasons = reasons[criterion] || [];
@@ -39,7 +43,7 @@ export default function Modal({
       : note.trim();
 
     // WICHTIG: Wir übergeben hier das feste 'criterion' und den korrekten 'targetStatus'
-    onSave(machineId, criterion, targetStatus, combinedNote, author.trim() || 'Mitarbeiter');
+    onSave(machineId, criterion, targetStatus, combinedNote, author.trim() || 'Mitarbeiter', shift);
   };
 
   return (
@@ -64,6 +68,7 @@ export default function Modal({
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
               Auftrag: <strong>{machineId}</strong> • Kriterium: <strong>{criterion}</strong>
+              {shift && <> • <strong>{shiftLabel(shift)}</strong></>}
             </p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '24px', cursor: 'pointer', lineHeight: '1' }}>&times;</button>
@@ -157,10 +162,23 @@ export default function Modal({
                   </button>
                 </>
               ) : (
-                /* Speichert eine neue Störung ab (➔ Wechselt zu ROT) */
-                <button type="button" onClick={(e) => handleProcessSubmit(e, 'red')} style={{ padding: '8px 14px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                  Als ROT speichern
-                </button>
+                <>
+                  {/* Schicht-Punkt: als "nicht besetzt" (grau) markieren bzw. wieder besetzen */}
+                  {shift && shiftNow !== 'off' && (
+                    <button type="button" onClick={(e) => handleProcessSubmit(e, 'off')} style={{ padding: '8px 14px', backgroundColor: '#94a3b8', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }} title="Diese Schicht ist geplant nicht besetzt (z. B. nur ein Bediener, der schichtet)">
+                      Nicht besetzt (grau)
+                    </button>
+                  )}
+                  {shift && shiftNow === 'off' && (
+                    <button type="button" onClick={(e) => handleProcessSubmit(e, 'green')} style={{ padding: '8px 14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                      Wieder besetzt (➔ GRÜN)
+                    </button>
+                  )}
+                  {/* Speichert eine neue Störung ab (➔ Wechselt zu ROT) */}
+                  <button type="button" onClick={(e) => handleProcessSubmit(e, 'red')} style={{ padding: '8px 14px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                    Als ROT speichern
+                  </button>
+                </>
               )}
             </div>
           </form>

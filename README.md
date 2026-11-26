@@ -21,7 +21,7 @@ Lernschleife nach PDCA. Entwickelt von Dominik Alge.
 
 | Bereich | Zweck |
 |---|---|
-| **Shopfloor Panel** | Ampelmatrix je Gruppe (Maschinen × Kriterien). Eine rote Zelle erzeugt automatisch ein Ticket und eine Mail an den zuständigen Bereich. |
+| **Shopfloor Panel** | Ampelmatrix je Gruppe (Maschinen × Kriterien). Eine rote Zelle erzeugt automatisch ein Ticket und eine Mail an den zuständigen Bereich. Im Kopf jeder Maschine steht «1-Schicht» oder «2-Schicht» (Klick schaltet um). Bei 2-Schicht-Maschinen hat «Personal» je Schicht einen Punkt (F/S): grün = besetzt, rot = fehlt, grau = geplant nicht besetzt. |
 | **Shopfloor Cockpit (TV)** | Übersicht für Bildschirm und Besprechung: Ansichten Betrieb, Steuerung und Prävention mit Kennzahlen, Risiken, Frühwarnung. Unter «Anpassen» lässt sich jeder Baustein mit «⇔» in ein Band oben legen und auf ⅓, ⅔ oder die ganze Breite ziehen, z. B. die Produktionslinien für den grossen TV. |
 | **Action Engine (Ebene 2)** | Bearbeitung der Tickets nach 0 · P · D · C · A, Eskalation nach Arbeitszeit, Historie & Auswertung. Details: [ACTION_ENGINE.md](ACTION_ENGINE.md) |
 
@@ -131,7 +131,8 @@ seither erfassten Einträge verloren.
 | Schichtzeiten, Feiertage, **Betriebsferien** | `backend\config\calendar.js` |
 | Phasen, Liste «Verantwortlich» | `backend\config\actionFlow.js` |
 | Mail-Empfänger bei ROT je Kriterium | `backend\config\notifications.js` |
-| Ein- oder Zweischicht je Maschine | Action Engine → «Kalender & Stufen» |
+| Ein- oder Zweischicht je Maschine | Panel (Klick auf «1-/2-Schicht») oder Action Engine → «Kalender & Stufen» |
+| Kriterien mit Punkt je Schicht (Standard: Personal) | `backend\config\calendar.js` und `frontend\src\shifts.js` |
 | PIN für geschützte Bereiche | `frontend\src\components\PinModal.jsx` |
 
 Nach einer Änderung im Ordner `config` den Server neu starten. Nach einer

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Matrix from './Matrix';
+import { SHIFTS, isSplit, isTwoShift, shiftState } from '../shifts';
 
 /* =========================================================================
    SHOPFLOOR COCKPIT – v4
@@ -1465,9 +1466,45 @@ export default function CockpitView({
                     >
                       {machineId}
                     </button>
+                    <span
+                      className={`shrink-0 text-[10px] font-bold px-1 rounded border ${
+                        isTwoShift(panel.machineCalendars, machineId)
+                          ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40'
+                          : 'bg-slate-700/60 text-slate-300 border-slate-600'
+                      }`}
+                      title={isTwoShift(panel.machineCalendars, machineId) ? 'Zweischicht' : 'Einschicht'}
+                    >
+                      {isTwoShift(panel.machineCalendars, machineId) ? '2S' : '1S'}
+                    </span>
                     <div className="flex flex-wrap gap-1 flex-1">
                       {(panel.criteria || []).map((crit) => {
-                        const isRed = panel.cells?.[`${machineId}-${crit}`]?.status === 'red';
+                        const cell = panel.cells?.[`${machineId}-${crit}`];
+                        const isRed = cell?.status === 'red';
+                        // Zweischicht + geteiltes Kriterium (Personal): zwei halbe Punkte F / S
+                        if (isSplit(panel.machineCalendars, machineId, crit)) {
+                          return (
+                            <span key={crit} className="flex gap-px" title={`${machineId} · ${crit}`}>
+                              {SHIFTS.map((sh) => {
+                                const st = shiftState(cell, sh.id);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={sh.id}
+                                    title={`${machineId} · ${crit} · ${sh.label}: ${st === 'red' ? 'FEHLT' : st === 'off' ? 'nicht besetzt' : 'besetzt'}`}
+                                    onClick={() => openDetail(panelId, machineId, crit)}
+                                    className={`${dotClass} !w-auto aspect-[1/2] rounded-sm transition-transform hover:scale-125 ${
+                                      st === 'red'
+                                        ? 'bg-red-500 ring-2 ring-red-300 animate-pulse'
+                                        : st === 'off'
+                                        ? 'bg-slate-500/70'
+                                        : 'bg-emerald-400/90 hover:bg-emerald-300'
+                                    }`}
+                                  />
+                                );
+                              })}
+                            </span>
+                          );
+                        }
                         return (
                           <button
                             type="button"
@@ -2324,8 +2361,9 @@ export default function CockpitView({
                 data={panelsMap[currentSlide.id].cells || {}}
                 machines={panelsMap[currentSlide.id].machines || []}
                 criteria={panelsMap[currentSlide.id].criteria || []}
+                machineCalendars={panelsMap[currentSlide.id].machineCalendars || {}}
                 currentPanelName={panelsMap[currentSlide.id].name}
-                onCellClick={(m, c) => onCellClick(m, c, currentSlide.id)}
+                onCellClick={(m, c, shift) => onCellClick(m, c, currentSlide.id, shift)}
                 onAddMachine={onAddMachine}
                 onAddCriterion={onAddCriterion}
                 onDeleteMachine={onDeleteMachine}

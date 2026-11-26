@@ -84,7 +84,8 @@ function frame(color, heading, rows, quote) {
 }
 
 export function sendStatusAlert(machineId, criterion, note, author) {
-  const contact = criterionContacts[criterion];
+  // "Personal (Frühschicht)" → Kontakt von "Personal"
+  const contact = criterionContacts[criterion] || criterionContacts[String(criterion).replace(/ \(.*\)$/, '')];
   if (!contact) return;
   return send({
     kind: 'Alarm ROT',
