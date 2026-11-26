@@ -15,6 +15,7 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
+import './services/loadEnv.js'; // muss zuerst kommen: liest backend/.env
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
