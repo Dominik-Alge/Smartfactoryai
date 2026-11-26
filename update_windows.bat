@@ -8,7 +8,8 @@ REM  -------------------------------------------------------------------------
 REM  So verwenden:
 REM    1. Neue Version (ZIP von GitHub) in einen EIGENEN Ordner entpacken,
 REM       z. B. C:\Update\Smartfactoryai-main  (NICHT nach C:\Smartfactoryai)
-REM    2. Laufenden Server beenden (Fenster von starten.bat schliessen)
+REM    2. Laufenden Server beenden: im PowerShell-Fenster, in dem der Server
+REM       läuft, Ctrl+C drücken bzw. das Fenster schliessen
 REM    3. Diese Datei im entpackten Ordner per Doppelklick starten
 REM
 REM  Was das Skript tut:
@@ -58,7 +59,16 @@ if not exist "%QUELLE%\backend\server.js" (
 )
 where node >nul 2>nul || (echo ABBRUCH: Node.js ist nicht installiert. & goto :fehler)
 
-echo Ist der Shopfloor-Server beendet (Fenster von starten.bat geschlossen)?
+REM Laeuft der Server noch? (Port 5000 belegt)
+netstat -ano | findstr /R /C:":5000 .*LISTENING" >nul
+if not errorlevel 1 (
+  echo ABBRUCH: Der Shopfloor-Server laeuft noch ^(Port 5000 ist belegt^).
+  echo Im PowerShell-Fenster des Servers Ctrl+C druecken oder das Fenster schliessen,
+  echo dann dieses Skript erneut starten.
+  goto :fehler
+)
+
+echo Server ist beendet. Update starten?
 pause
 
 REM --- 1. Sicherung ------------------------------------------------------------
@@ -98,7 +108,8 @@ if errorlevel 1 (echo ABBRUCH: Frontend-Build fehlgeschlagen. & goto :fehler)
 echo.
 echo ===================================================
 echo  Update abgeschlossen.
-echo  Jetzt den Server wieder mit starten.bat starten.
+echo  Jetzt den Server wieder starten (wie bisher in PowerShell
+echo  oder mit starten.bat).
 echo  Beim ersten Start legt der Server zusaetzlich eine
 echo  Sicherung der Datendatei an und wandelt sie um.
 echo  Sicherung dieses Updates: %BACKUP%
