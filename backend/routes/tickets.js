@@ -18,7 +18,7 @@ import {
 } from '../services/actionService.js';
 import { evaluateEscalation, levelIndex } from '../services/escalation.js';
 import { resolveCalendarId, holidaysOf } from '../services/shiftCalendar.js';
-import { sendEscalationMail } from '../services/emailService.js';
+import { sendEscalationMail, getOutbox, mailEnabled } from '../services/emailService.js';
 import { ESCALATION_LEVELS } from '../config/escalation.js';
 import { PHASES, TASK_OWNERS } from '../config/actionFlow.js';
 import { SHIFT_CALENDARS, DEFAULT_CALENDAR, COMPANY_HOLIDAYS } from '../config/calendar.js';
@@ -175,6 +175,12 @@ router.post('/ticket/:id/escalation/dismiss', (req, res) =>
     return dismissSuggestion(t, { reason: req.body.reason, dueLevel, author: authorOf(req) });
   })
 );
+
+// --- Postausgang (Vorschau aller Mails, auch wenn der Versand aus ist) ------------
+
+router.get('/outbox', (req, res) => {
+  res.json({ enabled: mailEnabled(), mails: getOutbox() });
+});
 
 // --- Maschinen-Kalender -----------------------------------------------------------------------
 

@@ -41,10 +41,10 @@ export const EASTER_HOLIDAYS = [
   { offset: 50, label: 'Pfingstmontag' }
 ];
 
-// Betriebsferien: In diesen Zeiträumen steht die Eskalationsuhr still.
-// Format JJJJ-MM-TT, beide Tage eingeschlossen.
-// BEISPIELWERTE – bitte durch die echten Betriebsferien ersetzen.
+// Betriebsferien und Vorholzeit: In diesen Zeiträumen steht die Eskalationsuhr
+// still. Format JJJJ-MM-TT, beide Tage eingeschlossen.
 export const COMPANY_HOLIDAYS = [
-  { from: '2026-12-24', to: '2027-01-03', label: 'Weihnachten / Neujahr (Beispiel)' },
-  { from: '2027-07-19', to: '2027-07-30', label: 'Sommerferien (Beispiel)' }
+  { from: '2026-12-24', to: '2026-12-31', label: 'Vorholzeit Weihnachten 2026' },
+  { from: '2027-07-26', to: '2027-08-06', label: 'Betriebsferien Sommer 2027' },
+  { from: '2027-12-24', to: '2027-12-31', label: 'Vorholzeit Weihnachten 2027' }
 ];

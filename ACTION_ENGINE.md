@@ -50,7 +50,7 @@ gefilterte Liste.
 | Datei | Inhalt |
 |---|---|
 | `backend/config/escalation.js` | Stufen und Zeitschwellen |
-| `backend/config/calendar.js` | Schichtzeiten, Feiertage, **Betriebsferien** |
+| `backend/config/calendar.js` | Schichtzeiten, Feiertage, Betriebsferien und Vorholzeit |
 | `backend/config/actionFlow.js` | Phasen, Liste «Verantwortlich» |
 | `backend/config/notifications.js` | Mail-Empfänger |
 | Action Engine → «Kalender & Stufen» | Ein- oder Zweischicht je Maschine |
@@ -65,6 +65,13 @@ nicht verändert oder gelöscht. Alte Stufennamen werden umgeschrieben
 
 **Vor dem Update auf dem Firmenserver trotzdem den Ordner
 `backend/shopfloor_data` von Hand sichern.**
+
+## Postausgang
+
+Jede Mail (Alarm bei ROT, Eskalation) erscheint unter «Postausgang» mit einer
+Vorschau, wie sie beim Empfänger ankommt – auch wenn der Versand noch nicht
+freigegeben ist. Der Postausgang hält die letzten 30 Mails im Arbeitsspeicher
+und ist nach einem Neustart leer.
 
 ## Umgebungsvariablen
 

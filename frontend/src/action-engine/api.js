@@ -22,6 +22,7 @@ export const api = {
   config: () => request('GET', '/action-config'),
   tickets: () => request('GET', '/tickets'),
   calendars: () => request('GET', '/calendars'),
+  outbox: () => request('GET', '/outbox'),
 
   editTicket: (id, fields, author) => request('PATCH', `/ticket/${id}`, { ...fields, author }),
   nextPhase: (id, author) => request('POST', `/ticket/${id}/phase`, { direction: 'next', author }),

@@ -8,6 +8,7 @@
 //   TicketDetail      Phasen 0·P·D·C·A, Eskalationspfad, Verlauf
 //   AnalysisView      Historie & Auswertung mit Filtern, Kennzahlen, Export
 //   CalendarSettings  Ein-/Zweischicht je Maschine, Feiertage
+//   OutboxView        Postausgang: Vorschau aller Mails
 // =========================================================================
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -17,6 +18,7 @@ import TicketList, { byUrgency } from './TicketList.jsx';
 import TicketDetail from './TicketDetail.jsx';
 import AnalysisView from './AnalysisView.jsx';
 import CalendarSettings from './CalendarSettings.jsx';
+import OutboxView from './OutboxView.jsx';
 
 const REFRESH_MS = 30 * 1000; // Tickets und Eskalationsuhren alle 30 s neu laden
 const AUTHOR_KEY = 'sf-action-engine-author';
@@ -24,7 +26,8 @@ const AUTHOR_KEY = 'sf-action-engine-author';
 const TABS = [
   { id: 'active', label: 'Offene Vorfälle' },
   { id: 'analysis', label: 'Historie & Auswertung' },
-  { id: 'calendar', label: 'Kalender & Stufen' }
+  { id: 'calendar', label: 'Kalender & Stufen' },
+  { id: 'outbox', label: 'Postausgang' }
 ];
 
 // Name der Person am Bildschirm – wird bei jeder Änderung mitgespeichert
@@ -53,6 +56,7 @@ export default function ActionEngine() {
   const [tab, setTab] = useState('active');
   const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
   const [author, setAuthor] = useAuthor();
 
   const load = useCallback(async () => {
@@ -109,7 +113,11 @@ export default function ActionEngine() {
       }),
     escalation: (mode, reason) => {
       const call = { up: api.escalate, down: api.deEscalate, dismiss: api.dismissEscalation }[mode];
-      return run(() => call(id, reason, who));
+      return run(async () => {
+        const t = await call(id, reason, who);
+        if (mode === 'up') setInfo(`Mail an ${config.levels[t.escalationInfo.currentLevel].short} erstellt – siehe Postausgang.`);
+        return t;
+      });
     }
   };
 
@@ -152,14 +160,17 @@ export default function ActionEngine() {
         </label>
       </div>
 
-      {error && (
-        <div className="mb-4">
+      {(error || info) && (
+        <div className="mb-4 flex flex-col gap-2">
           <Notice onClose={() => setError(null)}>{error}</Notice>
+          <Notice tone="info" onClose={() => setInfo(null)}>{info}</Notice>
         </div>
       )}
 
       {!config ? (
         <Empty>Lade Action Engine …</Empty>
+      ) : tab === 'outbox' ? (
+        <OutboxView />
       ) : tab === 'calendar' ? (
         <CalendarSettings config={config} onChanged={load} />
       ) : tab === 'analysis' && !selected ? (

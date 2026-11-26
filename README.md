@@ -68,7 +68,7 @@ Datenhaltung in einer JSON-Datei. Kein Docker nötig.
 
 ## 3. Installation auf dem Windows-Server
 
-Voraussetzung: Node.js LTS (Version 20 oder neuer).
+Voraussetzung: Node.js ab Version 20 (Firmenserver: v26.13.0).
 
 ```bat
 cd C:\Smartfactoryai\backend
@@ -82,7 +82,9 @@ npm run build
 Zugangsdaten anlegen: `backend\.env.example` nach `backend\.env` kopieren und
 ausfüllen (Abschnitt 5).
 
-Starten: Doppelklick auf `starten.bat`. Die Anwendung ist danach erreichbar
+Starten: in PowerShell im Ordner `backend` den Befehl `node server.js`
+ausführen und das Fenster offen lassen, oder Doppelklick auf `starten.bat`.
+Die Anwendung ist danach erreichbar
 unter `http://<SERVER-IP>:5000`. Der TCP-Port 5000 muss in der Firewall
 freigegeben sein.
 
@@ -98,14 +100,15 @@ Code. Das Update ersetzt nur den Code.
 1. Auf GitHub unter **Code → Download ZIP** die neue Version herunterladen
    und in einen **eigenen Ordner** entpacken, z. B. `C:\Update\Smartfactoryai-main`.
    Nicht direkt nach `C:\Smartfactoryai` entpacken.
-2. Server beenden (Fenster von `starten.bat` schliessen).
+2. Server beenden: im PowerShell-Fenster des Servers Ctrl+C drücken oder das
+   Fenster schliessen. Läuft er noch, bricht das Skript ab.
 3. Im entpackten Ordner `update_windows.bat` doppelklicken. Das Skript
    - sichert die ganze Installation inklusive Daten nach
      `C:\Smartfactoryai_Backup\<Datum_Zeit>\code`,
    - kopiert den neuen Code nach `C:\Smartfactoryai`, ohne
      `backend\shopfloor_data` und `backend\.env` anzufassen,
    - installiert die Pakete und baut das Frontend.
-4. Server mit `starten.bat` wieder starten.
+4. Server wieder starten wie gewohnt (PowerShell oder `starten.bat`).
 5. Prüfen: Panel öffnen, Action Engine öffnen, bestehende Tickets sichtbar?
 
 Beim ersten Start nach einem Update auf ein neues Datenformat legt der Server
@@ -134,7 +137,10 @@ seither erfassten Einträge verloren.
 Nach einer Änderung im Ordner `config` den Server neu starten. Nach einer
 Änderung im Ordner `frontend` zusätzlich `npm run build` ausführen.
 
-**Wichtig:** Ohne `SMTP_HOST` in `backend\.env` verschickt der Server keine Mails.
+**Mailversand:** Ohne `SMTP_HOST` in `backend\.env` verschickt der Server
+keine Mails. Jede Mail erscheint trotzdem in der Action Engine unter
+**Postausgang**, genau so, wie sie ankommen würde. So lässt sich der Ablauf
+zeigen, bevor die IT den Versand freigibt.
 
 ## 6. Datensicherung
 
