@@ -70,8 +70,74 @@ const CASES = [
   }
 ];
 
+// Erfundene, abgeschlossene Fälle der letzten 6 Monate für "Historie & Auswertung".
+// Mehrere Vorlagen wiederholen sich bewusst (gleiche Maschine + Kriterium).
+const HISTORY_TEMPLATES = [
+  { panelId: 'schleifen', machineId: '13503', criterion: 'Maschine', note: 'Spindel vibriert', cause: 'Scheibe nach Wechsel nicht ausgewuchtet', lessons: 'Auswuchten in Rüstcheckliste', level: 2 },
+  { panelId: 'schleifen', machineId: '13503', criterion: 'Qualität', note: 'Rauheit zu hoch', cause: 'Abrichtintervall zu lang', lessons: 'Abrichten nach 20 Teilen', level: 1 },
+  { panelId: 'schleifen', machineId: '13704', criterion: 'DISPO', note: 'Rohmaterial fehlt', cause: 'Mindestbestand zu tief', lessons: 'Mindestbestand monatlich prüfen', level: 1 },
+  { panelId: 'schleifen', machineId: '13402', criterion: 'Messmittel', note: 'Lehrring fehlt', cause: 'Lehrring nicht zurückgebracht', lessons: 'Ausleihliste im Messraum', level: 0 },
+  { panelId: 'schleifen', machineId: '13510', criterion: 'AVOR', note: 'Zeichnung veraltet', cause: 'Revision nicht freigegeben', lessons: 'Freigabe vor Auftragsstart prüfen', level: 1 },
+  { panelId: 'drehen', machineId: '12768', criterion: 'Qualität', note: 'Rundlauf ausser Toleranz', cause: 'Spannfutter verschmutzt', lessons: 'Reinigung in Rüstcheckliste', level: 2, failed: true },
+  { panelId: 'drehen', machineId: '12766', criterion: 'Maschine', note: 'Hydraulikleck', cause: 'Dichtung verschlissen', lessons: 'Dichtung in Wartungsplan', level: 3 },
+  { panelId: 'drehen', machineId: '12774', criterion: 'Werkzeug', note: 'Werkzeugbruch', cause: 'Standzeit überschritten', lessons: 'Standzeitüberwachung aktiviert', level: 0, calendar: 'einschicht' },
+  { panelId: 'drehen', machineId: '12769', criterion: 'Personal', note: 'Bediener krank', cause: 'Keine Stellvertretung qualifiziert', lessons: 'Zweiten Bediener anlernen', level: 2 }
+];
+
+// Einfacher Zufallsgenerator mit festem Startwert: jede Vorführung zeigt dasselbe
+function seededRandom(seed) {
+  let x = seed;
+  return () => {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    return x / 2147483648;
+  };
+}
+
+function seedHistory(data) {
+  const random = seededRandom(42);
+  const now = Date.now();
+  for (let i = 0; i < 40; i++) {
+    const tpl = HISTORY_TEMPLATES[Math.floor(random() * HISTORY_TEMPLATES.length)];
+    if (!data[tpl.panelId]) continue;
+    // Meldung an einem Werktag um ca. 8–14 Uhr, damit Arbeitszeit anfällt
+    const day = new Date(now - Math.floor(5 + random() * 175) * 24 * HOUR);
+    while (day.getUTCDay() === 0 || day.getUTCDay() === 6) day.setUTCDate(day.getUTCDate() - 1);
+    day.setUTCHours(7 + Math.floor(random() * 6), Math.floor(random() * 60), 0, 0);
+    const created = day.getTime();
+    const closed = created + (1 + random() * (tpl.level >= 2 ? 120 : 20)) * HOUR;
+
+    const t = createTicket({
+      id: generateActionId(data),
+      title: `${tpl.criterion}: ${tpl.note}`,
+      panelId: tpl.panelId,
+      machineId: tpl.machineId,
+      criterion: tpl.criterion,
+      note: tpl.note,
+      author: 'Beispiel'
+    });
+    const closedIso = new Date(closed).toISOString();
+    t.createdAt = new Date(created).toISOString();
+    t.closedAt = closedIso;
+    t.status = CLOSED_STATUS;
+    t.phase = 'standard';
+    t.containment = 'Teile gesperrt, Maschine gesichert.';
+    t.whys = [tpl.note, tpl.cause];
+    t.cause = tpl.cause;
+    t.lessonsLearned = tpl.lessons;
+    t.tasks = [{ id: `TSK-H${i}`, title: tpl.lessons, owner: 'AVOR / KVP', due: closedIso.slice(0, 10), status: 'completed', createdAt: t.createdAt, doneAt: closedIso }];
+    t.escalationLevel = levelName(tpl.level);
+    t.escalation.history = Array.from({ length: tpl.level }, (_, j) => ({ from: j, to: j + 1, reason: 'Zeitbudget überschritten', by: 'Beispiel', at: t.createdAt }));
+    t.effectiveness = { result: 'wirksam', note: '', by: 'Beispiel', at: closedIso };
+    if (tpl.failed && random() < 0.6) {
+      t.history.push({ event: 'effectiveness', user: 'Beispiel', timestamp: t.createdAt, details: 'Nicht wirksam – zurück zur Ursache. Fehler trat erneut auf' });
+    }
+    data._actions[t.id] = t;
+  }
+}
+
 export function seedDemoData(data, saveData) {
   if (Object.keys(data._actions).length > 0) return;
+  seedHistory(data);
 
   for (const c of CASES) {
     const panel = data[c.panelId];

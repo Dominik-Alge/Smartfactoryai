@@ -6,7 +6,7 @@
 // Komponenten daneben:
 //   TicketList        offene Vorfälle mit Eskalationsuhr
 //   TicketDetail      Phasen 0·P·D·C·A, Eskalationspfad, Verlauf
-//   ArchiveView       abgeschlossene Tickets (Unternehmensgedächtnis)
+//   AnalysisView      Historie & Auswertung mit Filtern, Kennzahlen, Export
 //   CalendarSettings  Ein-/Zweischicht je Maschine, Feiertage
 // =========================================================================
 
@@ -15,7 +15,7 @@ import { api } from './api.js';
 import { Badge, Empty, Notice, inputClass } from './ui.jsx';
 import TicketList, { byUrgency } from './TicketList.jsx';
 import TicketDetail from './TicketDetail.jsx';
-import ArchiveView from './ArchiveView.jsx';
+import AnalysisView from './AnalysisView.jsx';
 import CalendarSettings from './CalendarSettings.jsx';
 
 const REFRESH_MS = 30 * 1000; // Tickets und Eskalationsuhren alle 30 s neu laden
@@ -23,7 +23,7 @@ const AUTHOR_KEY = 'sf-action-engine-author';
 
 const TABS = [
   { id: 'active', label: 'Offene Vorfälle' },
-  { id: 'archive', label: 'Archiv' },
+  { id: 'analysis', label: 'Historie & Auswertung' },
   { id: 'calendar', label: 'Kalender & Stufen' }
 ];
 
@@ -72,7 +72,6 @@ export default function ActionEngine() {
   }, [load]);
 
   const open = useMemo(() => tickets.filter((t) => !t.closedAt).sort(byUrgency), [tickets]);
-  const closed = useMemo(() => tickets.filter((t) => t.closedAt), [tickets]);
   const selected = tickets.find((t) => t.id === selectedId) || null;
 
   // Erstes Ticket automatisch öffnen, damit die Ansicht nie leer ist
@@ -129,7 +128,7 @@ export default function ActionEngine() {
                 type="button"
                 onClick={() => {
                   setTab(t.id);
-                  if (t.id !== 'archive') setSelectedId(null);
+                  setSelectedId(null);
                 }}
                 className={`px-3 py-1 rounded text-xs font-bold transition ${
                   tab === t.id ? 'bg-amber-400 text-slate-950' : 'text-slate-400 hover:text-white'
@@ -163,15 +162,15 @@ export default function ActionEngine() {
         <Empty>Lade Action Engine …</Empty>
       ) : tab === 'calendar' ? (
         <CalendarSettings config={config} onChanged={load} />
-      ) : tab === 'archive' && !selected ? (
-        <ArchiveView tickets={closed} config={config} onSelect={setSelectedId} />
+      ) : tab === 'analysis' && !selected ? (
+        <AnalysisView tickets={tickets} config={config} onSelect={setSelectedId} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_2.2fr] gap-4 items-start">
           {tab === 'active' ? (
             <TicketList tickets={open} config={config} selectedId={selectedId} onSelect={setSelectedId} />
           ) : (
             <button type="button" onClick={() => setSelectedId(null)} className="text-left text-xs text-amber-300 hover:text-amber-200">
-              ← Zurück zum Archiv
+              ← Zurück zur Auswertung
             </button>
           )}
           {selected ? (
