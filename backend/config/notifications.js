@@ -2,6 +2,9 @@
 // E-MAIL-EMPFÄNGER
 // -------------------------------------------------------------------------
 // 1. criterionContacts: wer eine Mail bekommt, wenn eine Zelle ROT wird.
+//    "label" ist zugleich der zuständige Bereich, den Cockpit und Action
+//    Engine als «verantwortlich» anzeigen. Ohne Eintrag gilt die Person der
+//    aktuellen Eskalationsstufe. Leere E-Mail = Anzeige ja, aber keine Mail.
 // 2. escalationContacts: wer eine Mail bekommt, wenn ein Ticket auf eine
 //    Stufe eskaliert wird. Schlüssel = Stufe (Index aus config/escalation.js).
 //    Adressen können per Umgebungsvariable überschrieben werden
@@ -16,7 +19,8 @@ export const criterionContacts = {
   NCP: { email: 'dominik.alge@bruderer.com', label: 'NC-Programmierung' },
   Qualität: { email: 'dominik.alge@bruderer.com', label: 'Qualitätssicherung' },
   Material: { email: 'dominik.alge@bruderer.com', label: 'Logistik & Lager' },
-  Werkzeug: { email: 'dominik.alge@bruderer.com', label: 'Werkzeugbau' }
+  Werkzeug: { email: 'dominik.alge@bruderer.com', label: 'Werkzeugbau' },
+  Personal: { email: '', label: 'Gruppenleiter' } // nur Anzeige, keine Mail
 };
 
 export const escalationContacts = {
