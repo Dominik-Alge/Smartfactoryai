@@ -11,6 +11,7 @@ import Matrix from './Matrix';
 
    Alles Anpassbare wird im Browser (localStorage) gespeichert:
      Ansicht, Abteilungen, Zoom, Layout je Ansicht, Filter je Ansicht,
+     Band über mehrere Spalten (⅓, ⅔, ganze Breite),
      Punktgrösse, Rotationsintervall, Qualitätskriterien,
      Position/Grösse aller Fenster, Abschnitte im Maschinen-Detail.
 
@@ -104,6 +105,10 @@ const VIEWS = {
 };
 
 const COLUMN_SPANS = ['lg:col-span-5', 'lg:col-span-4', 'lg:col-span-3'];
+
+// Band über die ganze Breite (oberhalb der drei Spalten): Breite in Dritteln
+const WIDE_SPANS = { 1: 'lg:col-span-1', 2: 'lg:col-span-2', 3: 'lg:col-span-3' };
+const WIDE_SPAN_LABELS = { 1: '⅓', 2: '⅔', 3: 'ganz' };
 const COLUMN_NAMES = ['Links', 'Mitte', 'Rechts'];
 
 const DOT_SIZES = {
@@ -369,6 +374,15 @@ function sanitizeLayout(stored, def) {
       return true;
     })
   );
+}
+
+// Bausteine im breiten Band: [{ id, span: 1 | 2 | 3 }]
+function sanitizeWide(stored) {
+  if (!stored || !Array.isArray(stored.wide)) return [];
+  const seen = new Set();
+  return stored.wide
+    .filter((w) => w && WIDGETS[w.id] && !seen.has(w.id) && seen.add(w.id))
+    .map((w) => ({ id: w.id, span: [1, 2, 3].includes(w.span) ? w.span : 3 }));
 }
 
 function sanitizeSections(stored) {
@@ -989,7 +1003,11 @@ export default function CockpitView({
   }, [storedGroups, availableGroups]);
   const groupsKey = selectedGroupIds.join('|');
 
-  const layout = useMemo(() => sanitizeLayout(layouts[view], VIEWS[view].columns), [layouts, view]);
+  const wideRow = useMemo(() => sanitizeWide(layouts[view]), [layouts, view]);
+  const layout = useMemo(() => {
+    const wideIds = new Set(wideRow.map((w) => w.id));
+    return sanitizeLayout(layouts[view], VIEWS[view].columns).map((col) => col.filter((id) => !wideIds.has(id)));
+  }, [layouts, view, wideRow]);
   const filters = { ...DEFAULT_FILTERS, preset: VIEWS[view].preset, ...(filtersAll[view] || {}) };
   const setFilter = (patch) => setFiltersAll((prev) => ({ ...prev, [view]: { ...(prev[view] || {}), ...patch } }));
 
@@ -1327,7 +1345,7 @@ export default function CockpitView({
 
   const dotClass = DOT_SIZES[settings.dotSize] || DOT_SIZES.M;
   const currentSlide = slides[slideIndex] || slides[0];
-  const visibleWidgets = layout.flat();
+  const visibleWidgets = [...wideRow.map((w) => w.id), ...layout.flat()];
   const showFilterBar = visibleWidgets.some((id) => PERIOD_WIDGETS.includes(id)) || view !== 'betrieb';
 
   // -----------------------------------------------------------------------
@@ -1406,8 +1424,12 @@ export default function CockpitView({
     );
   };
 
-  const renderLines = () => (
-    <div className="space-y-4">
+  // span > 1: Gruppen nebeneinander, Maschinen in mehreren Spalten (für grosse TV-Bildschirme)
+  const renderLines = (span = 1) => (
+    <div
+      className={span > 1 ? 'grid gap-4 items-start' : 'space-y-4'}
+      style={span > 1 ? { gridTemplateColumns: `repeat(${Math.min(span, Math.max(1, selectedGroupIds.length))}, minmax(0, 1fr))` } : undefined}
+    >
       {selectedGroupIds.map((panelId) => {
         const panel = panelsMap[panelId];
         if (!panel) return null;
@@ -1422,7 +1444,10 @@ export default function CockpitView({
               {panel.name}
               <span className="text-xs opacity-70 group-hover:translate-x-1 transition-transform">→ Board</span>
             </button>
-            <div className="space-y-1">
+            <div
+              className={span > 1 ? 'grid gap-1' : 'space-y-1'}
+              style={span > 1 ? { gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' } : undefined}
+            >
               {(panel.machines || []).map((machineId) => {
                 const reds = (panel.criteria || []).filter((c) => panel.cells?.[`${machineId}-${c}`]?.status === 'red').length;
                 return (
@@ -1934,7 +1959,7 @@ export default function CockpitView({
     );
   };
 
-  const renderWidget = (id, grow) => {
+  const renderWidget = (id, grow, span = 1) => {
     let content = null;
     let right = null;
     let title = WIDGETS[id]?.title || id;
@@ -1944,7 +1969,7 @@ export default function CockpitView({
         title = `Kennzahlen · ${selectedGroupIds.length} ${selectedGroupIds.length === 1 ? 'Gruppe' : 'Gruppen'}`;
         break;
       case 'lines':
-        content = renderLines();
+        content = renderLines(span);
         right = <span className="text-[11px] text-slate-400">Gruppe → Board · Maschine/Punkt → Details</span>;
         break;
       case 'alarms':
@@ -2002,7 +2027,7 @@ export default function CockpitView({
   // -----------------------------------------------------------------------
   // LAYOUT-BEARBEITUNG
   // -----------------------------------------------------------------------
-  const saveLayout = (columns) => setLayouts((prev) => ({ ...prev, [view]: { columns } }));
+  const saveLayout = (columns, wide = wideRow) => setLayouts((prev) => ({ ...prev, [view]: { columns, wide } }));
   const moveWidget = (col, idx, dCol, dIdx) => {
     const cols = layout.map((c) => [...c]);
     const [id] = cols[col].splice(idx, 1);
@@ -2024,6 +2049,26 @@ export default function CockpitView({
     cols[col].push(id);
     saveLayout(cols);
   };
+  // Breites Band: Baustein aus einer Spalte nach oben holen, Breite ändern, zurücklegen
+  const makeWide = (col, idx) => {
+    const cols = layout.map((c) => [...c]);
+    const [id] = cols[col].splice(idx, 1);
+    saveLayout(cols, [...wideRow, { id, span: 3 }]);
+  };
+  const setWideSpan = (i, span) => saveLayout(layout, wideRow.map((w, j) => (j === i ? { ...w, span } : w)));
+  const moveWide = (i, d) => {
+    const wide = [...wideRow];
+    const [w] = wide.splice(i, 1);
+    wide.splice(clamp(i + d, 0, wide.length), 0, w);
+    saveLayout(layout, wide);
+  };
+  const unWide = (i, col) => {
+    const cols = layout.map((c) => [...c]);
+    cols[col].unshift(wideRow[i].id);
+    saveLayout(cols, wideRow.filter((_, j) => j !== i));
+  };
+  const removeWide = (i) => saveLayout(layout, wideRow.filter((_, j) => j !== i));
+  const addWide = (id) => saveLayout(layout, [...wideRow, { id, span: 3 }]);
   const hiddenWidgets = Object.keys(WIDGETS).filter((id) => !visibleWidgets.includes(id));
 
   // -----------------------------------------------------------------------
@@ -2252,6 +2297,17 @@ export default function CockpitView({
               )}
             </div>
 
+            {/* ===== BREITES BAND (über mehrere Spalten) ===== */}
+            {wideRow.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch mb-4">
+                {wideRow.map((w) => (
+                  <div key={w.id} className={`${WIDE_SPANS[w.span]} flex flex-col min-w-0`}>
+                    {renderWidget(w.id, true, w.span)}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* ===== COCKPIT-RASTER ===== */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
               {layout.map((col, ci) => (
@@ -2362,6 +2418,34 @@ export default function CockpitView({
                   Standard wiederherstellen
                 </button>
               </div>
+              <div className="bg-[#1e293b] border border-amber-500/40 rounded-lg p-2 mb-2">
+                <div className="text-[11px] font-bold text-amber-300 mb-1.5">Oben, über mehrere Spalten</div>
+                {wideRow.length === 0 && (
+                  <div className="text-[11px] text-slate-500 italic">leer – mit «⇔» einen Baustein aus einer Spalte hierher holen</div>
+                )}
+                <div className="space-y-1.5">
+                  {wideRow.map((w, i) => (
+                    <div key={w.id} className="bg-slate-800 rounded p-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="text-xs font-bold text-white flex-1 min-w-[120px] truncate">{WIDGETS[w.id].title}</span>
+                      <span className="text-slate-400">Breite:</span>
+                      {[1, 2, 3].map((n) => (
+                        <button
+                          type="button"
+                          key={n}
+                          onClick={() => setWideSpan(i, n)}
+                          className={`px-1.5 rounded font-bold ${w.span === n ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 hover:bg-slate-600'}`}
+                        >
+                          {WIDE_SPAN_LABELS[n]}
+                        </button>
+                      ))}
+                      <button type="button" onClick={() => moveWide(i, -1)} className="px-1.5 rounded bg-slate-700 hover:bg-slate-600" title="nach links">←</button>
+                      <button type="button" onClick={() => moveWide(i, 1)} className="px-1.5 rounded bg-slate-700 hover:bg-slate-600" title="nach rechts">→</button>
+                      <button type="button" onClick={() => unWide(i, 0)} className="px-1.5 rounded bg-slate-700 hover:bg-slate-600" title="zurück in die linke Spalte">↓ Spalte</button>
+                      <button type="button" onClick={() => removeWide(i)} className="px-1.5 rounded bg-red-500/20 text-red-300 hover:bg-red-500/30" title="ausblenden">✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 {layout.map((col, ci) => (
                   <div key={ci} className="bg-[#1e293b] border border-slate-700 rounded-lg p-2 space-y-1.5 min-w-0">
@@ -2397,6 +2481,14 @@ export default function CockpitView({
                           </button>
                           <button
                             type="button"
+                            onClick={() => makeWide(ci, wi)}
+                            className="px-1.5 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                            title="breit: oben über mehrere Spalten anzeigen"
+                          >
+                            ⇔
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => removeWidget(ci, wi)}
                             className="ml-auto px-1.5 rounded bg-red-500/20 text-red-300 hover:bg-red-500/30"
                             title="ausblenden"
@@ -2426,6 +2518,13 @@ export default function CockpitView({
                             + {n}
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => addWide(id)}
+                          className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200"
+                        >
+                          + Breit
+                        </button>
                       </div>
                     ))}
                   </div>
