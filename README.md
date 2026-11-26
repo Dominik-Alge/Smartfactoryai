@@ -1,212 +1,175 @@
-SMARTFACTORYAI – WINDOWS SERVER DEPLOYMENT
+# FactoryAI Shopfloor Panel
 
+Digitales Shopfloor Management für die Fertigung: Ampelstatus je Maschine und
+Kriterium, automatische Störungstickets, Eskalation nach Arbeitszeit und eine
+Lernschleife nach PDCA. Entwickelt von Dominik Alge.
 
-PROJEKT
-Shopfloor Management Panel (Shopfloor-Maske)
+## Inhalt
 
-Die Anwendung dient zur digitalen Erfassung von Maschinenstati, Kriterienübersichten (Ampelsystem), Schichtübergaben sowie zur Verwaltung von Shopfloor- und Verbesserungsmassnahmen.
+1. [Funktionen](#1-funktionen)
+2. [Aufbau](#2-aufbau)
+3. [Installation auf dem Windows-Server](#3-installation-auf-dem-windows-server)
+4. [Update auf eine neue Version](#4-update-auf-eine-neue-version)
+5. [Einstellungen](#5-einstellungen)
+6. [Datensicherung](#6-datensicherung)
+7. [Entwicklung und Tests](#7-entwicklung-und-tests)
+8. [Vorführumgebung auf Render](#8-vorführumgebung-auf-render)
 
-═══════════════════════════════════════════════════
-1. SYSTEMAUFBAU
-═══════════════════════════════════════════════════
+---
 
-Die Anwendung ist hierarchisch aufgebaut:
+## 1. Funktionen
 
-GRUPPE
-→ Produktionsübersicht einer gesamten Gruppe
+| Bereich | Zweck |
+|---|---|
+| **Shopfloor Panel** | Ampelmatrix je Gruppe (Maschinen × Kriterien). Eine rote Zelle erzeugt automatisch ein Ticket und eine Mail an den zuständigen Bereich. |
+| **Shopfloor Cockpit (TV)** | Übersicht für Bildschirm und Besprechung: Ansichten Betrieb, Steuerung und Prävention mit Kennzahlen, Risiken, Frühwarnung. |
+| **Action Engine (Ebene 2)** | Bearbeitung der Tickets nach 0 · P · D · C · A, Eskalation nach Arbeitszeit, Historie & Auswertung. Details: [ACTION_ENGINE.md](ACTION_ENGINE.md) |
 
-INSEL
-→ Zusammenfassung mehrerer Arbeitsplätze
+### Action Engine in Kürze
 
-MASCHINE
-→ Detailansicht eines einzelnen Arbeitsplatzes
+- **Ablauf:** 0 Sofortmassnahme → P Ursache (5× Warum) → D Abstellmassnahme →
+  C Wirksamkeit → A Standard / Lessons Learned. Ist eine Massnahme nicht
+  wirksam, geht das Ticket zurück zur Ursache.
+- **Eskalation:** Mitarbeiter → Gruppenleiter (2 h) → Inselleiter (6 h) →
+  Produktionsleiter (2 Arbeitstage) → Geschäftsleitung (5 Arbeitstage).
+  Gezählt wird Arbeitszeit im Schichtfenster der Maschine, ohne Wochenende,
+  Thurgauer Feiertage und Betriebsferien. Das System **schlägt nur vor**,
+  jede Entscheidung braucht eine Begründung.
+- **Historie & Auswertung:** Filter nach Zeitraum, Gruppe, Maschine, Kriterium,
+  Status, Stufe, Wirksamkeit und Volltext; Kennzahlen, Wiederholer und
+  CSV-Export für Excel.
 
-═══════════════════════════════════════════════════
-2. TECHNISCHE ARCHITEKTUR
-═══════════════════════════════════════════════════
+## 2. Aufbau
 
-Frontend:
-- React
-- Vite (Build-System)
-
-Backend:
-- Node.js
-- Express
-
-Datenspeicherung:
-- JSON-Datei (shopfloor_storage.json)
-
-Betriebsmodell:
-- On-Premise auf Windows Server
-- Kein Docker erforderlich
-
-Hinweis:
-Das React-Frontend wird einmalig mittels Vite kompiliert (Build) und anschliessend direkt durch den Express-Server bereitgestellt. 
-Im Produktivbetrieb wird ausschliesslich der Node.js-Server ausgeführt.
-
-═══════════════════════════════════════════════════
-3. PROJEKTSTRUKTUR
-═══════════════════════════════════════════════════
-
+```
 Smartfactoryai
-│
-├── starten.bat
-├── README.md
-│
+├── starten.bat              Startet den Server unter Windows
+├── update_windows.bat       Update ohne Datenverlust (siehe Abschnitt 4)
+├── ACTION_ENGINE.md         Beschreibung der Action Engine
 ├── backend
-│   ├── server.js
-│   ├── package.json
-│   └── shopfloor_data
+│   ├── server.js            Start, Gruppen-/Panel-Routen, Auslieferung Frontend
+│   ├── routes/tickets.js    Action-Engine-API
+│   ├── services/            Speicher, Ticket-Modell, Eskalation, Kalender, Mail
+│   ├── config/              Einstellungen für den Betrieb (Abschnitt 5)
+│   ├── demo/                Beispieldaten für Vorführungen
+│   ├── tests/               Automatische Tests
+│   ├── .env                 Zugangsdaten (nur auf dem Server, nie im Repository)
+│   └── shopfloor_data/      BETRIEBSDATEN – nie löschen, nie überschreiben
 │       └── shopfloor_storage.json
-│
 └── frontend
-    ├── dist
-    ├── src
-    ├── package.json
-    └── vite.config.js
+    ├── src/                 React-Oberfläche
+    │   ├── components/      Panel, Cockpit, Dialoge
+    │   └── action-engine/   Action Engine
+    └── dist/                Fertig gebautes Frontend (wird erzeugt)
+```
 
-Beschreibung: 
-starten.bat → Startet die Anwendung unter Windows 
-backend/server.js → Node.js-Server für API und Frontend-Auslieferung 
-backend/package.json → Backend-Abhängigkeiten 
-frontend/package.json → Frontend-Abhängigkeiten 
-backend/shopfloor_data → Persistente Datenspeicherung und Backup-Ordner 
-backend/shopfloor_data/shopfloor_storage.json → Persistente Anwendungsdaten 
-frontend/dist → Kompilierte Produktionsversion des Frontends
+Technik: Node.js mit Express (Backend), React mit Vite (Frontend),
+Datenhaltung in einer JSON-Datei. Kein Docker nötig.
 
-═══════════════════════════════════════════════════
-4. INSTALLATION AUF DEM WINDOWS SERVER
-═══════════════════════════════════════════════════
+## 3. Installation auf dem Windows-Server
 
-Voraussetzungen:
+Voraussetzung: Node.js LTS (Version 20 oder neuer).
 
-- Windows Server
-- Node.js LTS Version
+```bat
+cd C:\Smartfactoryai\backend
+npm install --omit=dev
 
-Schritt 1: Projekt bereitstellen
-
-Die Anwendung kann in einem beliebigen Verzeichnis auf dem Zielsystem abgelegt werden.
-
-Beispiel:
-
-<Installationsverzeichnis>\Smartfactoryai
-
-Schritt 2: Backend-Abhängigkeiten installieren
-
-cd <Installationsverzeichnis>\Smartfactoryai\backend
-
+cd C:\Smartfactoryai\frontend
 npm install
+npm run build
+```
 
-Schritt 3: Frontend-Abhängigkeiten installieren und Build erstellen
+Zugangsdaten anlegen: `backend\.env.example` nach `backend\.env` kopieren und
+ausfüllen (Abschnitt 5).
 
-cd <Installationsverzeichnis>\Smartfactoryai\frontend
+Starten: Doppelklick auf `starten.bat`. Die Anwendung ist danach erreichbar
+unter `http://<SERVER-IP>:5000`. Der TCP-Port 5000 muss in der Firewall
+freigegeben sein.
 
+Für den Dauerbetrieb (Start nach Serverneustart) richtet die IT einen
+Windows-Dienst oder eine geplante Aufgabe mit dem Befehl `node server.js` im
+Ordner `backend` ein.
+
+## 4. Update auf eine neue Version
+
+Die Betriebsdaten liegen in `backend\shopfloor_data` und gehören nicht zum
+Code. Das Update ersetzt nur den Code.
+
+1. Auf GitHub unter **Code → Download ZIP** die neue Version herunterladen
+   und in einen **eigenen Ordner** entpacken, z. B. `C:\Update\Smartfactoryai-main`.
+   Nicht direkt nach `C:\Smartfactoryai` entpacken.
+2. Server beenden (Fenster von `starten.bat` schliessen).
+3. Im entpackten Ordner `update_windows.bat` doppelklicken. Das Skript
+   - sichert die ganze Installation inklusive Daten nach
+     `C:\Smartfactoryai_Backup\<Datum_Zeit>\code`,
+   - kopiert den neuen Code nach `C:\Smartfactoryai`, ohne
+     `backend\shopfloor_data` und `backend\.env` anzufassen,
+   - installiert die Pakete und baut das Frontend.
+4. Server mit `starten.bat` wieder starten.
+5. Prüfen: Panel öffnen, Action Engine öffnen, bestehende Tickets sichtbar?
+
+Beim ersten Start nach einem Update auf ein neues Datenformat legt der Server
+zusätzlich selbst eine Kopie an:
+`backend\shopfloor_data\shopfloor_storage.backup-v1-<Zeit>.json`.
+
+**Zurück zur alten Version:** Server beenden, den Inhalt von
+`C:\Smartfactoryai_Backup\<Datum_Zeit>\code` nach `C:\Smartfactoryai` kopieren,
+dann im Ordner `frontend` `npm install` und `npm run build` ausführen und neu
+starten. Den Ordner `backend\shopfloor_data` dabei **nur** mitkopieren, wenn
+auch die Daten auf den Stand vor dem Update zurück sollen – sonst gehen alle
+seither erfassten Einträge verloren.
+
+## 5. Einstellungen
+
+| Was | Wo |
+|---|---|
+| Mailserver, Empfänger je Eskalationsstufe | `backend\.env` (Vorlage: `backend\.env.example`) |
+| Eskalationsstufen und Zeitschwellen | `backend\config\escalation.js` |
+| Schichtzeiten, Feiertage, **Betriebsferien** | `backend\config\calendar.js` |
+| Phasen, Liste «Verantwortlich» | `backend\config\actionFlow.js` |
+| Mail-Empfänger bei ROT je Kriterium | `backend\config\notifications.js` |
+| Ein- oder Zweischicht je Maschine | Action Engine → «Kalender & Stufen» |
+| PIN für geschützte Bereiche | `frontend\src\components\PinModal.jsx` |
+
+Nach einer Änderung im Ordner `config` den Server neu starten. Nach einer
+Änderung im Ordner `frontend` zusätzlich `npm run build` ausführen.
+
+**Wichtig:** Ohne `SMTP_HOST` in `backend\.env` verschickt der Server keine Mails.
+
+## 6. Datensicherung
+
+Alle Betriebsdaten liegen in einer Datei:
+
+```
+C:\Smartfactoryai\backend\shopfloor_data\shopfloor_storage.json
+```
+
+Den Ordner `backend\shopfloor_data` in die bestehende Backup-Lösung (z. B. Veeam)
+aufnehmen. Der Server schreibt die Datei so, dass ein Absturz während des
+Speicherns sie nicht beschädigt.
+
+## 7. Entwicklung und Tests
+
+```bash
+# Backend mit Beispieldaten starten (Port 5000)
+cd backend
 npm install
+DEMO_DATA=true node server.js        # Windows: set DEMO_DATA=true && node server.js
 
-npm run build
+# Frontend im Entwicklungsmodus (Port 5173, greift auf Port 5000 zu)
+cd frontend
+npm install
+npm run dev
 
-Hinweis:
+# Tests (Schichtkalender, Eskalation, Phasen, alte Daten)
+cd backend
+npm test
+```
 
-Der Build erzeugt den Ordner:
+Änderungen laufen über einen eigenen Branch und einen Pull Request auf `main`.
 
-frontend\dist
+## 8. Vorführumgebung auf Render
 
-Dieser wird anschliessend automatisch durch das Backend ausgeliefert.
-
-Schritt 4: Anwendung starten
-
-cd <Installationsverzeichnis>\Smartfactoryai\backend
-
-node server.js
-
-Alternativ:
-
-Doppelklick auf starten.bat
-═══════════════════════════════════════════════════
-5. ZUGRIFF AUF DIE ANWENDUNG
-═══════════════════════════════════════════════════
-
-Nach erfolgreichem Start ist die Anwendung erreichbar unter:
-
-http://<SERVER-IP>:5000
-
-Firewall-Anforderung:
-
-Der TCP-Port 5000 muss für eingehende Verbindungen freigegeben sein.
-
-═══════════════════════════════════════════════════
-6. BETRIEB ALS WINDOWS-DIENST
-═══════════════════════════════════════════════════
-
-Für einen produktiven Betrieb kann die Anwendung als Windows-Dienst eingerichtet werden, sodass sie nach einem Serverneustart automatisch gestartet wird.
-
-Die konkrete Umsetzung (Windows-Dienst, Task Scheduler oder alternative Betriebsform) erfolgt in Abstimmung mit der IT und entsprechend den geltenden Betriebsstandards.
-
-Produktiver Startbefehl:
-
-cd <Installationsverzeichnis>\Smartfactoryai\backend
-node server.js
-
-═══════════════════════════════════════════════════
-7. DATENSICHERUNG
-═══════════════════════════════════════════════════
-
-Alle Betriebsdaten werden in folgendem Verzeichnis gespeichert:
-
-<Installationsverzeichnis>\Smartfactoryai\backend\shopfloor_data
-
-Datei:
-
-shopfloor_storage.json
-
-Empfehlung:
-
-Das Verzeichnis
-
-<Installationsverzeichnis>\Smartfactoryai\backend\shopfloor_data
-
-soll in die bestehende Backup-Lösung (z.B. Veeam) aufgenommen werden.
-
-═══════════════════════════════════════════════════
-8. WARTUNG
-═══════════════════════════════════════════════════
-
-Frontend-Änderungen:
-
-cd <Installationsverzeichnis>\Smartfactoryai\frontend
-
-npm run build
-
-Backend-Neustart:
-
-cd <Installationsverzeichnis>\Smartfactoryai\backend
-
-node server.js
-
-Hinweis:
-
-Die aktuelle Datenhaltung basiert bewusst auf einer JSON-Datei und wurde für die Pilotphase möglichst einfach gehalten.
-
-Im Normalbetrieb sind keine manuellen Eingriffe an der Datenstruktur erforderlich.
-
-═══════════════════════════════════════════════════
-STATUS
-═══════════════════════════════════════════════════
-
-Die Anwendung wurde erfolgreich in einer Windows-Umgebung installiert, gebaut und betrieben.
-
-Folgende Funktionen konnten erfolgreich getestet werden:
-
-- Frontend-Build mittels Vite
-- Start des Node.js / Express Servers
-- Auslieferung des Frontends über Express
-- Persistente Datenspeicherung über shopfloor_storage.json
-- Lokaler Zugriff über HTTP (Port 5000)
-- Betrieb ohne Docker-Container
-
-Aktuelle technische Kennzahlen der Testumgebung:
-
-- Installationsgrösse der Anwendung: ca. 63 MB
-- Frontend-Build (dist): ca. 177 KB
-- Arbeitsspeicherbedarf des Node.js-Prozesses: ca. 15 MB
-- Aktuelle Datendatei: ca. 2 KB
+Der Dienst `shopfloor-panel-Update` baut automatisch jeden Stand von `main`.
+Mit `DEMO_DATA=true` legt er Beispieltickets an. Render speichert keine Daten:
+Nach jedem Neustart beginnt die Vorführung wieder mit den Beispieldaten.
