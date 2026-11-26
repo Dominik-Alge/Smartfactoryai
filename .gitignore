@@ -1,0 +1,9 @@
+# Abhängigkeiten und Build
+node_modules/
+frontend/dist/
+
+# Betriebsdaten – gehören nie ins Repository
+backend/shopfloor_data/
+
+# Zugangsdaten
+.env
