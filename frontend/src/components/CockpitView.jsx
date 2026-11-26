@@ -2268,7 +2268,6 @@ export default function CockpitView({
                 data={panelsMap[currentSlide.id].cells || {}}
                 machines={panelsMap[currentSlide.id].machines || []}
                 criteria={panelsMap[currentSlide.id].criteria || []}
-                historyLog={panelsMap[currentSlide.id].historyLog || []}
                 currentPanelName={panelsMap[currentSlide.id].name}
                 onCellClick={(m, c) => onCellClick(m, c, currentSlide.id)}
                 onAddMachine={onAddMachine}

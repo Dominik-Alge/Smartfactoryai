@@ -506,7 +506,6 @@ export default function App() {
           onAddCriterion={handleAddCriterion}
           onDeleteMachine={handleDeleteMachine}
           onDeleteCriterion={handleDeleteCriterion}
-          historyLog={panelData.historyLog}
           onMoveMachine={handleMoveMachine}
           onMoveCriterion={handleMoveCriterion}
 

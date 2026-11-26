@@ -5,7 +5,6 @@ export default function ShopfloorMatrix({
   machines = [],
   criteria = [],
   currentPanelName = '',
-  historyLog = [],
   onCellClick,
   onAddMachine,
   onAddCriterion,
@@ -16,7 +15,6 @@ export default function ShopfloorMatrix({
 }) {
   const [newMachine, setNewMachine] = useState('');
   const [newCriterion, setNewCriterion] = useState('');
-  const [showHistory, setShowHistory] = useState(false);
 
   const arrowBtnStyle = {
     fontSize: '11px',
@@ -78,25 +76,7 @@ export default function ShopfloorMatrix({
           </form>
         </div>
 
-        {/* -24h Historie Steuerung */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => setShowHistory(!showHistory)}
-            style={{
-              padding: '8px 14px',
-              backgroundColor: showHistory ? '#f1f5f9' : '#ffffff',
-              color: showHistory ? '#0f172a' : '#64748b',
-              border: '1px solid #cbd5e1',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            {showHistory ? 'Verlaufspunkte ausblenden' : 'Verlaufspunkte einblenden'}
-          </button>
-
           <span style={{ fontSize: '12px', backgroundColor: '#fef3c7', color: '#d97706', padding: '6px 14px', borderRadius: '9999px', fontWeight: '600', border: '1px solid #fde68a' }}>
             Shopfloor-Modus
           </span>
@@ -187,16 +167,6 @@ export default function ShopfloorMatrix({
                   const cellData = data?.[key] || data?.cells?.[key];
                   const isRed = cellData?.status === 'red';
 
-                                    const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
-                  const cellHistoryEvents = historyLog?.filter(log => {
-                    const logTime = new Date(log.timestamp || Date.now()).getTime();
-                    const isRecent = logTime > twentyFourHoursAgo;
-                    const matchesCell =
-                      (log.type === 'Maschine' && log.name === machineId && log.note?.includes(`"${criterion}"`)) ||
-                      (log.type === 'Kategorie' && log.name === criterion && log.note?.includes(`"${machineId}"`));
-                    return isRecent && matchesCell;
-                  }) || [];
-
                   return (
                     <td key={machineId} style={{ padding: '12px 8px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff', verticalAlign: 'middle', textAlign: 'center' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
@@ -218,29 +188,6 @@ export default function ShopfloorMatrix({
                           }}
                         />
 
-                        {showHistory && cellHistoryEvents.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
-                            {cellHistoryEvents.map((event, i) => (
-                              <div
-                                key={i}
-                                title={`${event.note} um ${event.time || event.timestamp} Uhr`}
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: '700',
-                                  color: '#991b1b',
-                                  backgroundColor: '#fee2e2',
-                                  padding: '1px 4px',
-                                  borderRadius: '4px',
-                                  border: '1px solid #fca5a5',
-                                  cursor: 'help',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                {event.time || new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </td>
                   );
