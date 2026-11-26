@@ -119,6 +119,9 @@ const DOT_SIZES = {
   XL: 'w-9 h-9'
 };
 
+// Schriftgrösse der Hinweise «was fehlt → wer ist dran», passend zur Punktgrösse
+const RESPONSIBLE_TEXT = { S: 'text-xs', M: 'text-sm', L: 'text-base', XL: 'text-lg' };
+
 const DEFAULT_SETTINGS = {
   dotSize: 'M',
   rotateSec: 15,
@@ -1425,6 +1428,43 @@ export default function CockpitView({
     );
   };
 
+  // Offenes Ticket je Zelle (Maschine + Kriterium), für «wer ist dran»
+  const openTicketByCell = {};
+  tickets
+    .filter((t) => t.status !== 'Geschlossen')
+    .forEach((t) => {
+      openTicketByCell[`${t.machineId ?? t.source?.machineId}|${t.criterion ?? t.source?.criterion}`] = t;
+    });
+
+  // Rote Kriterien einer Maschine mit Verantwortlichem, gross genug für den TV
+  const renderResponsible = (panel, machineId) => {
+    const red = (panel.criteria || []).filter((c) => panel.cells?.[`${machineId}-${c}`]?.status === 'red');
+    if (!red.length) return null;
+    return (
+      <div className={`flex flex-wrap gap-1.5 mt-1.5 ${RESPONSIBLE_TEXT[settings.dotSize] || 'text-sm'}`}>
+        {red.map((crit) => {
+          const cell = panel.cells[`${machineId}-${crit}`];
+          const shiftsRed = isSplit(panel.machineCalendars, machineId, crit)
+            ? SHIFTS.filter((sh) => shiftState(cell, sh.id) === 'red').map((sh) => sh.short === 'F' ? 'Früh' : 'Spät')
+            : [];
+          const ticket = openTicketByCell[`${machineId}|${crit}`];
+          return (
+            <button
+              type="button"
+              key={crit}
+              onClick={() => openDetail(panel.id, machineId, crit)}
+              className="inline-flex items-center gap-1.5 bg-red-600 text-white font-bold rounded-md px-2 py-0.5 leading-tight hover:bg-red-500"
+              title={ticket ? `${ticket.id} · ${ticket.title}` : crit}
+            >
+              <span>{crit}{shiftsRed.length ? ` ${shiftsRed.join('+')}` : ''}</span>
+              {ticket?.responsible && <span className="font-normal opacity-90">→ {ticket.responsible}</span>}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   // span > 1: Gruppen nebeneinander, Maschinen in mehreren Spalten (für grosse TV-Bildschirme)
   const renderLines = (span = 1) => (
     <div
@@ -1454,10 +1494,9 @@ export default function CockpitView({
                 return (
                   <div
                     key={machineId}
-                    className={`flex items-center gap-2 rounded-md px-1.5 py-1 border ${
-                      reds ? 'bg-red-500/10 border-red-500/30' : 'border-transparent'
-                    }`}
+                    className={`rounded-md px-1.5 py-1 border ${reds ? 'bg-red-500/10 border-red-500/30' : 'border-transparent'}`}
                   >
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => openDetail(panelId, machineId)}
@@ -1519,6 +1558,8 @@ export default function CockpitView({
                       })}
                     </div>
                     {reds > 0 && <Badge tone="red">{reds}</Badge>}
+                  </div>
+                  {renderResponsible({ ...panel, id: panelId }, machineId)}
                   </div>
                 );
               })}

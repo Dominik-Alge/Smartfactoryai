@@ -130,7 +130,7 @@ seither erfassten Einträge verloren.
 | Eskalationsstufen und Zeitschwellen | `backend\config\escalation.js` |
 | Schichtzeiten, Feiertage, **Betriebsferien** | `backend\config\calendar.js` |
 | Phasen, Liste «Verantwortlich» | `backend\config\actionFlow.js` |
-| Mail-Empfänger bei ROT je Kriterium | `backend\config\notifications.js` |
+| Mail-Empfänger bei ROT und zuständiger Bereich je Kriterium (Anzeige «→ verantwortlich» im Cockpit) | `backend\config\notifications.js` |
 | Ein- oder Zweischicht je Maschine | Panel (Klick auf «1-/2-Schicht») oder Action Engine → «Kalender & Stufen» |
 | Kriterien mit Punkt je Schicht (Standard: Personal) | `backend\config\calendar.js` und `frontend\src\shifts.js` |
 | PIN für geschützte Bereiche | `frontend\src\components\PinModal.jsx` |

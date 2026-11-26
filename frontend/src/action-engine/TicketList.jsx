@@ -53,6 +53,7 @@ function TicketCard({ ticket, config, selected, onSelect }) {
       <div className="text-[11px] text-slate-400 mt-0.5">
         Maschine {ticket.machineId} · {levels[info.currentLevel].short} · seit {formatWorkTime(info.workedMs)}
       </div>
+      {ticket.responsible && <div className="text-[11px] text-amber-200 mt-0.5">Dran: {ticket.responsible}</div>}
 
       <div className="mt-2">
         <AgingBar progress={info.progress} state={info.state} />

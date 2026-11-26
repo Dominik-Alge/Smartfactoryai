@@ -20,6 +20,7 @@ import { evaluateEscalation, levelIndex } from '../services/escalation.js';
 import { resolveCalendarId, holidaysOf } from '../services/shiftCalendar.js';
 import { sendEscalationMail, getOutbox, mailEnabled } from '../services/emailService.js';
 import { ESCALATION_LEVELS } from '../config/escalation.js';
+import { criterionContacts } from '../config/notifications.js';
 import { PHASES, TASK_OWNERS } from '../config/actionFlow.js';
 import { SHIFT_CALENDARS, DEFAULT_CALENDAR, COMPANY_HOLIDAYS } from '../config/calendar.js';
 
@@ -32,9 +33,19 @@ function calendarOf(data, ticket) {
   return resolveCalendarId(panel?.machineCalendars?.[ticket.machineId]);
 }
 
+// Wer muss jetzt handeln? 1. Verantwortliche offener Massnahmen,
+// 2. zuständiger Bereich des Kriteriums, 3. Person der aktuellen Stufe.
+function responsibleOf(ticket, info) {
+  const owners = [...new Set(ticket.tasks.filter((t) => t.status !== 'completed').map((t) => t.owner))];
+  if (owners.length) return owners.join(', ');
+  const area = criterionContacts[ticket.criterion]?.label;
+  return area || ESCALATION_LEVELS[info.currentLevel].short;
+}
+
 function withInfo(data, ticket) {
   const calendarId = calendarOf(data, ticket);
-  return { ...ticket, calendarId, escalationInfo: evaluateEscalation(ticket, calendarId) };
+  const escalationInfo = evaluateEscalation(ticket, calendarId);
+  return { ...ticket, calendarId, escalationInfo, responsible: responsibleOf(ticket, escalationInfo) };
 }
 
 // Lädt das Ticket, führt die Änderung aus, speichert und antwortet.
