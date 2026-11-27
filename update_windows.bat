@@ -68,6 +68,15 @@ if not errorlevel 1 (
   goto :fehler
 )
 
+if not exist "%ZIEL%\backend\shopfloor_data\shopfloor_storage.json" (
+  echo ACHTUNG: Unter %ZIEL%\backend\shopfloor_data wurde KEINE Datendatei gefunden.
+  echo Liegen eure Daten in einem anderen Ordner, startet der neue Server leer.
+  echo Fenster schliessen = abbrechen. Taste druecken = trotzdem fortfahren.
+  pause
+) else (
+  for %%F in ("%ZIEL%\backend\shopfloor_data\shopfloor_storage.json") do echo Datendatei gefunden: %%~zF Bytes, Stand %%~tF
+)
+
 echo Server ist beendet. Update starten?
 pause
 
