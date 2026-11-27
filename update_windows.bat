@@ -42,6 +42,13 @@ echo  Sicherung nach   : %BACKUP%
 echo ===================================================
 echo.
 
+REM Schreibrechte in D:\Shopfloor brauchen Administratorrechte
+net session >nul 2>&1
+if errorlevel 1 (
+  echo ABBRUCH: Bitte mit Rechtsklick "Als Administrator ausfuehren" starten.
+  goto :fehler
+)
+
 REM --- Prüfungen -----------------------------------------------------------
 if /I "%QUELLE%"=="%ZIEL%" (
   echo ABBRUCH: Das Skript laeuft im Installationsordner selbst.
@@ -85,7 +92,7 @@ pause
 REM --- 1. Sicherung ------------------------------------------------------------
 echo.
 echo [1/3] Sichere bisherige Installation und Daten ...
-robocopy "%ZIEL%" "%BACKUP%\code" /E /XD node_modules dist /NFL /NDL /NJH /NJS /NP >nul
+robocopy "%ZIEL%" "%BACKUP%\code" /E /XD node_modules dist /R:2 /W:2 /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 (echo ABBRUCH: Sicherung fehlgeschlagen. & goto :fehler)
 
 if exist "%ZIEL%\backend\shopfloor_data\shopfloor_storage.json" (
@@ -99,7 +106,7 @@ echo       OK: %BACKUP%\code
 REM --- 2. Neuen Code kopieren (Daten und .env bleiben unberuehrt) ----------------
 echo.
 echo [2/3] Kopiere neue Version ...
-robocopy "%QUELLE%" "%ZIEL%" /E /XD node_modules dist .git shopfloor_data /XF .env /NFL /NDL /NJH /NJS /NP >nul
+robocopy "%QUELLE%" "%ZIEL%" /E /XD node_modules dist .git shopfloor_data /XF .env /R:2 /W:2 /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 (echo ABBRUCH: Kopieren fehlgeschlagen. Sicherung liegt unter %BACKUP%. & goto :fehler)
 echo       OK
 
