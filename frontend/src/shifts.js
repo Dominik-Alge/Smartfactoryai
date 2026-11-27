@@ -19,6 +19,7 @@ export const isTwoShift = (machineCalendars, machineId) => calendarOf(machineCal
 export const isSplit = (machineCalendars, machineId, criterion) =>
   SHIFT_SPLIT_CRITERIA.includes(criterion) && isTwoShift(machineCalendars, machineId);
 
-// Zustand einer Schicht: 'green' | 'red' | 'off'
-export const shiftState = (cell, shiftId) => cell?.shifts?.[shiftId] || 'green';
+// Zustand einer Schicht: 'green' | 'red' | 'off'.
+// Zellen ohne Schichtangabe (z. B. vor dem Update rot geworden) gelten für beide Schichten.
+export const shiftState = (cell, shiftId) => cell?.shifts?.[shiftId] || (cell?.status === 'red' ? 'red' : 'green');
 export const shiftLabel = (shiftId) => SHIFTS.find((s) => s.id === shiftId)?.label || '';

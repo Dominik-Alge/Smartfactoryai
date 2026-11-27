@@ -22,7 +22,9 @@ export function isSplitCell(panel, machineId, criterion) {
 
 // Setzt den Zustand einer Schicht und leitet daraus den Gesamtstatus ab
 export function applyShiftStatus(cell, shiftId, state) {
-  cell.shifts = { ...Object.fromEntries(SHIFTS.map((s) => [s.id, 'green'])), ...(cell.shifts || {}) };
+  // Fehlende Schichtangaben übernehmen den bisherigen Zellstatus (alte Daten vor dem Update)
+  const fallback = cell.status === 'red' ? 'red' : 'green';
+  cell.shifts = { ...Object.fromEntries(SHIFTS.map((s) => [s.id, fallback])), ...(cell.shifts || {}) };
   cell.shifts[shiftId] = state;
   cell.status = Object.values(cell.shifts).includes('red') ? 'red' : 'green';
   return cell;
