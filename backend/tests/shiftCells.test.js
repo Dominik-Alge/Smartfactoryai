@@ -23,3 +23,10 @@ test('Eine fehlende Schicht macht die Zelle rot, grau bleibt erhalten', () => {
   assert.equal(cell.status, 'green');
   assert.equal(cell.shifts.spaet, 'off');
 });
+
+test('Alte rote Zelle ohne Schichtangabe: beide Schichten gelten als rot', () => {
+  const cell = { status: 'red', notes: [] };
+  applyShiftStatus(cell, 'frueh', 'green'); // Frühschicht ist wieder da
+  assert.deepEqual(cell.shifts, { frueh: 'green', spaet: 'red' });
+  assert.equal(cell.status, 'red');
+});

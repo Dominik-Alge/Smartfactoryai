@@ -4,12 +4,12 @@ echo ===================================================
 echo Starte FactoryAI Backend ^& Frontend unter Windows...
 echo ===================================================
 
-:: Wechselt sicher in das richtige Verzeichnis
-cd /d "C:\Smartfactoryai\backend"
+:: Wechselt in den Ordner backend neben dieser Datei (z. B. D:\Shopfloor\backend)
+cd /d "%~dp0backend"
 
 :: Installiert fehlende Pakete
 echo Pruefe und installiere API-Abhaengigkeiten...
-call npm install --production
+call npm install --omit=dev
 
 :: Startet den Server direkt
 echo Starte den Node.js Express Server...

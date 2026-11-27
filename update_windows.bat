@@ -7,25 +7,25 @@ REM  UPDATE AUF DEM WINDOWS-SERVER
 REM  -------------------------------------------------------------------------
 REM  So verwenden:
 REM    1. Neue Version (ZIP von GitHub) in einen EIGENEN Ordner entpacken,
-REM       z. B. C:\Update\Smartfactoryai-main  (NICHT nach C:\Smartfactoryai)
+REM       z. B. D:\Update\Smartfactoryai-main  (NICHT nach D:\Shopfloor)
 REM    2. Laufenden Server beenden: im PowerShell-Fenster, in dem der Server
 REM       läuft, Ctrl+C drücken bzw. das Fenster schliessen
 REM    3. Diese Datei im entpackten Ordner per Doppelklick starten
 REM
 REM  Was das Skript tut:
 REM    1. Sichert die komplette bisherige Installation inkl. Daten nach
-REM       C:\Smartfactoryai_Backup\<Datum_Zeit>
-REM    2. Kopiert den neuen Code nach C:\Smartfactoryai.
+REM       D:\Shopfloor_Backup\<Datum_Zeit>
+REM    2. Kopiert den neuen Code nach D:\Shopfloor.
 REM       Der Ordner backend\shopfloor_data und die Datei backend\.env
 REM       werden dabei NICHT angefasst.
 REM    3. Installiert die Pakete und baut das Frontend neu.
 REM
 REM  Zurück zur alten Version: Inhalt des Backup-Ordners "code" wieder nach
-REM  C:\Smartfactoryai kopieren (siehe README, Abschnitt Update).
+REM  D:\Shopfloor kopieren (siehe README, Abschnitt Update).
 REM =========================================================================
 
-set "ZIEL=C:\Smartfactoryai"
-set "BACKUP_BASIS=C:\Smartfactoryai_Backup"
+set "ZIEL=D:\Shopfloor"
+set "BACKUP_BASIS=D:\Shopfloor_Backup"
 
 set "QUELLE=%~dp0"
 if "%QUELLE:~-1%"=="\" set "QUELLE=%QUELLE:~0,-1%"
@@ -66,6 +66,15 @@ if not errorlevel 1 (
   echo Im PowerShell-Fenster des Servers Ctrl+C druecken oder das Fenster schliessen,
   echo dann dieses Skript erneut starten.
   goto :fehler
+)
+
+if not exist "%ZIEL%\backend\shopfloor_data\shopfloor_storage.json" (
+  echo ACHTUNG: Unter %ZIEL%\backend\shopfloor_data wurde KEINE Datendatei gefunden.
+  echo Liegen eure Daten in einem anderen Ordner, startet der neue Server leer.
+  echo Fenster schliessen = abbrechen. Taste druecken = trotzdem fortfahren.
+  pause
+) else (
+  for %%F in ("%ZIEL%\backend\shopfloor_data\shopfloor_storage.json") do echo Datendatei gefunden: %%~zF Bytes, Stand %%~tF
 )
 
 echo Server ist beendet. Update starten?

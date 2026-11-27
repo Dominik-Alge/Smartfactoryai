@@ -71,10 +71,10 @@ Datenhaltung in einer JSON-Datei. Kein Docker nötig.
 Voraussetzung: Node.js ab Version 20 (Firmenserver: v26.13.0).
 
 ```bat
-cd C:\Smartfactoryai\backend
+cd D:\Shopfloor\backend
 npm install --omit=dev
 
-cd C:\Smartfactoryai\frontend
+cd D:\Shopfloor\frontend
 npm install
 npm run build
 ```
@@ -84,6 +84,10 @@ ausfüllen (Abschnitt 5).
 
 Starten: in PowerShell im Ordner `backend` den Befehl `node server.js`
 ausführen und das Fenster offen lassen, oder Doppelklick auf `starten.bat`.
+
+Produktivserver: **FRASSHOPFLOOR01** (Windows Server 2025), Installation in
+`D:\Shopfloor`, erreichbar unter `http://shopfloor.bruderer.ag:5000`.
+
 Die Anwendung ist danach erreichbar
 unter `http://<SERVER-IP>:5000`. Der TCP-Port 5000 muss in der Firewall
 freigegeben sein.
@@ -98,14 +102,14 @@ Die Betriebsdaten liegen in `backend\shopfloor_data` und gehören nicht zum
 Code. Das Update ersetzt nur den Code.
 
 1. Auf GitHub unter **Code → Download ZIP** die neue Version herunterladen
-   und in einen **eigenen Ordner** entpacken, z. B. `C:\Update\Smartfactoryai-main`.
-   Nicht direkt nach `C:\Smartfactoryai` entpacken.
+   und in einen **eigenen Ordner** entpacken, z. B. `D:\Update\Smartfactoryai-main`.
+   Nicht direkt nach `D:\Shopfloor` entpacken.
 2. Server beenden: im PowerShell-Fenster des Servers Ctrl+C drücken oder das
    Fenster schliessen. Läuft er noch, bricht das Skript ab.
 3. Im entpackten Ordner `update_windows.bat` doppelklicken. Das Skript
    - sichert die ganze Installation inklusive Daten nach
-     `C:\Smartfactoryai_Backup\<Datum_Zeit>\code`,
-   - kopiert den neuen Code nach `C:\Smartfactoryai`, ohne
+     `D:\Shopfloor_Backup\<Datum_Zeit>\code`,
+   - kopiert den neuen Code nach `D:\Shopfloor`, ohne
      `backend\shopfloor_data` und `backend\.env` anzufassen,
    - installiert die Pakete und baut das Frontend.
 4. Server wieder starten wie gewohnt (PowerShell oder `starten.bat`).
@@ -116,7 +120,7 @@ zusätzlich selbst eine Kopie an:
 `backend\shopfloor_data\shopfloor_storage.backup-v1-<Zeit>.json`.
 
 **Zurück zur alten Version:** Server beenden, den Inhalt von
-`C:\Smartfactoryai_Backup\<Datum_Zeit>\code` nach `C:\Smartfactoryai` kopieren,
+`D:\Shopfloor_Backup\<Datum_Zeit>\code` nach `D:\Shopfloor` kopieren,
 dann im Ordner `frontend` `npm install` und `npm run build` ausführen und neu
 starten. Den Ordner `backend\shopfloor_data` dabei **nur** mitkopieren, wenn
 auch die Daten auf den Stand vor dem Update zurück sollen – sonst gehen alle
@@ -148,7 +152,7 @@ zeigen, bevor die IT den Versand freigibt.
 Alle Betriebsdaten liegen in einer Datei:
 
 ```
-C:\Smartfactoryai\backend\shopfloor_data\shopfloor_storage.json
+D:\Shopfloor\backend\shopfloor_data\shopfloor_storage.json
 ```
 
 Den Ordner `backend\shopfloor_data` in die bestehende Backup-Lösung (z. B. Veeam)
