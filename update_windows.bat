@@ -59,8 +59,10 @@ if not exist "%QUELLE%\backend\server.js" (
 )
 where node >nul 2>nul || (echo ABBRUCH: Node.js ist nicht installiert. & goto :fehler)
 
-REM Laeuft der Server noch? (Port 5000 belegt)
-netstat -ano | findstr /R /C:":5000 .*LISTENING" >nul
+REM Laeuft der Server noch? Nur node.exe auf Port 5000 zaehlt.
+REM (Auf FRASSHOPFLOOR01 lauscht zusaetzlich der Nutanix-Backupdienst auf
+REM  127.0.0.1:5000 - der darf und soll weiterlaufen.)
+powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue | Where-Object { (Get-Process -Id $_.OwningProcess).ProcessName -eq 'node' }) { exit 0 } else { exit 1 }"
 if not errorlevel 1 (
   echo ABBRUCH: Der Shopfloor-Server laeuft noch ^(Port 5000 ist belegt^).
   echo Im PowerShell-Fenster des Servers Ctrl+C druecken oder das Fenster schliessen,
